@@ -59,7 +59,7 @@ class App:
         self.warning = True
 
     def video_loop(self):
-        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
         skip = 2
         counter = 0
         last_annotated = None

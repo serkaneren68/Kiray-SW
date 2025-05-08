@@ -62,6 +62,45 @@ class App:
         self.model = YOLO("best2.pt")
 
         self._create_manual_controls()
+        self._create_restricted_area_frame()
+
+
+    def crosshair_ekle(self,frame):
+        h, w = frame.shape[:2]
+        center_x, center_y = w // 2, h // 2
+
+        # Yatay ve dikey sarı çizgi çiz
+        cv2.line(frame, (center_x - 20, center_y), (center_x + 20, center_y), (0, 255, 0), 2)
+        cv2.line(frame, (center_x, center_y - 20), (center_x, center_y + 20), (0, 255, 0), 2)
+
+        return frame
+
+
+    def _create_restricted_area_frame(self):
+        frame = tk.LabelFrame(self.root, text="Atışa Yasaklı Alan", bg="black", fg="orange", bd=2)
+        lbl = tk.Label(frame, text="Açı (0-360):", font=("Arial", 14), bg="black", fg="white")
+        lbl.pack(pady=5)
+
+        self.restricted_angle_var = tk.StringVar()
+        entry = tk.Entry(frame, textvariable=self.restricted_angle_var, font=("Arial", 14), width=10)
+        entry.pack(pady=5)
+
+        btn = tk.Button(frame, text="ONAYLA", font=("Arial", 12), command=self.confirm_restricted_angle)
+        btn.pack(pady=5)
+
+        self.restricted_area_frame = frame
+
+    def confirm_restricted_angle(self):
+        angle_str = self.restricted_angle_var.get()
+        try:
+            angle = float(angle_str)
+            if 0 <= angle <= 360:
+                self.restricted_angle = angle
+                messagebox.showinfo("Onay", f"Atışa Yasaklı Alan: {angle} Derece olarak ayarlandı.")
+            else:
+                messagebox.showerror("Hata", "Lütfen 0 ile 360 arasında bir değer giriniz.")
+        except ValueError:
+            messagebox.showerror("Hata", "Geçerli bir sayı giriniz.")
 
     def manual_command(self, direction):
         if direction == "up":
@@ -76,6 +115,9 @@ class App:
         elif direction == "right":
             print("Sağa hareket et")
             # Buraya sağa hareket için yapılacak işlemi ekleyebilirsin
+        elif direction == "shot":
+            print("Atış yap")
+            # Buraya atış yapma işlemini ekleyebilirsin 
 
     def _create_manual_controls(self):
         frame = tk.LabelFrame(self.root, text="Manuel Kontroller", bg="black", fg="yellow", bd=1)
@@ -84,11 +126,14 @@ class App:
         btn_down = tk.Button(frame, text="↓", font=("Arial", 28), width=3, height=1, command=lambda: self.manual_command("down"))
         btn_left = tk.Button(frame, text="←", font=("Arial", 28), width=3, height=1, command=lambda: self.manual_command("left"))
         btn_right = tk.Button(frame, text="→", font=("Arial", 28), width=3, height=1, command=lambda: self.manual_command("right"))
+
+        btn_shot = tk.Button(frame, text="atıs", font=("Arial", 28),  width=3, height=1, command=lambda: self.manual_command("shot"))
         
         btn_up.grid(row=0, column=1, pady=10)
         btn_left.grid(row=1, column=0, padx=10)
-        btn_right.grid(row=1, column=2, padx=10)
+        btn_right.grid(row=1, column=3, padx=10)
         btn_down.grid(row=2, column=1, pady=10)
+        btn_shot.grid(row=1, column=1, pady=10)
         
         self.manual_control_frame = frame
 
@@ -163,7 +208,8 @@ class App:
         if self.confirmed_mode == "Mod 2":
             self.fe_frame.place(x=1000, y=50, width=500, height=150)
         elif self.confirmed_mode == "Mod 3":
-            self.letter_frame.place(x=1000, y=300, width=300, height=180)
+            self.letter_frame.place(x=1000, y=300, width=450, height=180)
+            self.restricted_area_frame.place(x=1000, y=500, width=300, height=150)
             self.awaiting_confirmation = False
             self.detected_letter = None
             self.confirmed_letter = None
@@ -321,7 +367,6 @@ class App:
             ann = frame.copy()
 
             if mode == "Manuel":
-                # sadece ham video göster
                 ann = frame.copy()
             elif mode == "Mod 1" or mode == "Mod 2":
                 results = self.model(frame, imgsz=640)[0]
@@ -333,9 +378,8 @@ class App:
                     roi = frame[y1:y2, x1:x2]
                     if mode == "Mod 2":
                         clr = self.detect_color(roi)
-                        # Mod 2: renk tabanlı dost/düşman ayrımı
                         if clr:
-                            clr_upper = clr.upper()  # güvenli hale getir
+                            clr_upper = clr.upper()
                             if clr_upper == "MAVI":
                                 text = "dost"
                             elif clr_upper == "KIRMIZI":
@@ -344,35 +388,37 @@ class App:
                                 text = "BİLİNMİYOR"
                         else:
                             text = "BİLİNMİYOR"
-
-                        print(f"[Mod2] Tespit edilen renk: {clr_upper if clr else None}")  # debug için
-
                     else:
                         text = "balloon"
                     cv2.rectangle(ann, (x1,y1),(x2,y2),(0,255,0),2)
                     cv2.putText(ann, text, (x1,y1-10), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.8, (255,255,255),2)
-            else:  # Mod 3
+            else:
                 if not self.awaiting_confirmation:
                     data, pts, _ = self.qr_detector.detectAndDecode(frame)
                     if data in ("A","B"):
                         self.detected_letter = data
                         self.confirmed_letter = data
                         self.letter_label.config(text=f"Harf: {data}")
-
                     processed_frame, result = self.detect_color_shape(frame)
                     color, shape = result
                     if color and shape:
                         self.detected_shape = f"{color} {shape}"
                         self.confirmed_shape = f"{color} {shape}"
-                        self.shape_label.config(text=f"Şekil: {self.confirmed_shape}")
-                        self.awaiting_confirmation = True
+                        self.shape_label.config(text=f"Şekil: {color} {shape}")
                     ann = processed_frame
+                else:
+                    ann = frame.copy()
 
-            rgb = cv2.cvtColor(ann, cv2.COLOR_BGR2RGB)
-            img = ImageTk.PhotoImage(Image.fromarray(rgb))
-            self.canvas.create_image(0, 0, anchor="nw", image=img)
-            self.canvas.image = img
+            # ⬇️ Crosshair'ı ekle
+            ann = self.crosshair_ekle(ann)
+
+            # ⬇️ Tkinter'de gösterim
+            image = cv2.cvtColor(ann, cv2.COLOR_BGR2RGB)
+            image = Image.fromarray(image)
+            image = ImageTk.PhotoImage(image)
+            self.canvas.create_image(0, 0, anchor=tk.NW, image=image)
+            self.canvas.image = image
 
         self.cap.release()
 

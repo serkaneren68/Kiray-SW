@@ -121,8 +121,8 @@ class App:
 
     def _create_fe_frame(self):
         frame = tk.LabelFrame(self.root, text="Renk Bazlı Sınıflandırma", bg="black", fg="limegreen", bd=2)
-        lbl_friend = tk.Label(frame, text="Dost Rengi: YEŞİL", font=("Arial",12), bg="black", fg="white")
-        lbl_enemy  = tk.Label(frame, text="Düşman Rengi: KIRMIZI", font=("Arial",12), bg="black", fg="white")
+        lbl_friend = tk.Label(frame, text="Dost Rengi: MAVİ", font=("Arial",25), bg="black", fg="blue")
+        lbl_enemy  = tk.Label(frame, text="Düşman Rengi: KIRMIZI", font=("Arial",25), bg="black", fg="red")
         lbl_friend.pack(anchor="w", pady=5, padx=10)
         lbl_enemy.pack(anchor="w", pady=5, padx=10)
         self.fe_frame = frame
@@ -130,7 +130,7 @@ class App:
     def _create_letter_frame(self):
         frame = tk.LabelFrame(self.root, text="Angajman Onay", bg="black", fg="dodgerblue", bd=2)
         self.letter_label = tk.Label(frame, text="Harf: —", font=("Arial",28), fg="cyan", bg="black")
-        self.shape_label  = tk.Label(frame, text="Şekil: —", font=("Arial",20), fg="orange", bg="black")
+        self.shape_label  = tk.Label(frame, text="Şekil: —", font=("Arial",28), fg="orange", bg="black")
         self.btn_accept  = tk.Button(frame, text="Angajmanı Kabul Et", font=("Arial",16), command=self.accept_engagement)
         self.letter_label.pack(pady=5)
         self.shape_label.pack(pady=5)
@@ -161,7 +161,7 @@ class App:
         self.manual_control_frame.place_forget()  # <--- Yön tuşlarını gizle
 
         if self.confirmed_mode == "Mod 2":
-            self.fe_frame.place(x=1000, y=50, width=220, height=80)
+            self.fe_frame.place(x=1000, y=50, width=500, height=150)
         elif self.confirmed_mode == "Mod 3":
             self.letter_frame.place(x=1000, y=300, width=300, height=180)
             self.awaiting_confirmation = False
@@ -198,17 +198,22 @@ class App:
 
     def detect_color(self, roi):
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        avg_color = np.mean(hsv.reshape(-1, 3), axis=0)
-        h, s, v = avg_color
-        if s < 50 or v < 50:
+        counts = {"KIRMIZI": 0, "YEŞİL": 0, "MAVI": 0}
+        
+        for renk, araliklar in COLOR_RANGES.items():
+            mask = None
+            for lo, hi in araliklar:
+                m = cv2.inRange(hsv, lo, hi)
+                mask = m if mask is None else cv2.bitwise_or(mask, m)
+            counts[renk] = cv2.countNonZero(mask)
+        
+        dominant_color = max(counts, key=counts.get)
+        
+        if counts[dominant_color] > 20:  # 50 pikselden fazlaysa güven
+            return dominant_color
+        else:
             return None
-        if (h < 10 or h > 160):
-            return "KIRMIZI"
-        elif 35 <= h <= 85:
-            return "YEŞİL"
-        elif 100 <= h <= 135:
-            return "MAVI"
-        return None
+
 
     def detect_shape(self, mask):
         """
@@ -328,7 +333,20 @@ class App:
                     roi = frame[y1:y2, x1:x2]
                     if mode == "Mod 2":
                         clr = self.detect_color(roi)
-                        text = "DOST" if clr=="YEŞİL" else "DÜŞMAN" if clr=="KIRMIZI" else "TANIMSIZ BALON"
+                        # Mod 2: renk tabanlı dost/düşman ayrımı
+                        if clr:
+                            clr_upper = clr.upper()  # güvenli hale getir
+                            if clr_upper == "MAVI":
+                                text = "dost"
+                            elif clr_upper == "KIRMIZI":
+                                text = "dusman"
+                            else:
+                                text = "BİLİNMİYOR"
+                        else:
+                            text = "BİLİNMİYOR"
+
+                        print(f"[Mod2] Tespit edilen renk: {clr_upper if clr else None}")  # debug için
+
                     else:
                         text = "balloon"
                     cv2.rectangle(ann, (x1,y1),(x2,y2),(0,255,0),2)

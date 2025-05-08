@@ -8,6 +8,10 @@ import pytesseract
 import math
 from tkinter import messagebox
 
+import signal
+import sys
+
+
 # Renk aralıkları tanımı
 COLOR_RANGES = {
     "Kırmızı": [
@@ -24,6 +28,8 @@ COLOR_RANGES = {
 
 class App:
     def __init__(self, root):
+        self.video_thread = None
+        self.cap = None
         self.detected_shape = None
         self.confirmed_shape = None
         self.awaiting_confirmation = False
@@ -54,6 +60,38 @@ class App:
         except:
             pass
         self.model = YOLO("best2.pt")
+
+        self._create_manual_controls()
+
+    def manual_command(self, direction):
+        if direction == "up":
+            print("Yukarı hareket et")
+            # Buraya yukarı hareket için yapılacak işlemi ekleyebilirsin
+        elif direction == "down":
+            print("Aşağı hareket et")
+            # Buraya aşağı hareket için yapılacak işlemi ekleyebilirsin
+        elif direction == "left":
+            print("Sola hareket et")
+            # Buraya sola hareket için yapılacak işlemi ekleyebilirsin
+        elif direction == "right":
+            print("Sağa hareket et")
+            # Buraya sağa hareket için yapılacak işlemi ekleyebilirsin
+
+    def _create_manual_controls(self):
+        frame = tk.LabelFrame(self.root, text="Manuel Kontroller", bg="black", fg="yellow", bd=1)
+        
+        btn_up = tk.Button(frame, text="↑", font=("Arial", 28), width=3, height=1, command=lambda: self.manual_command("up"))
+        btn_down = tk.Button(frame, text="↓", font=("Arial", 28), width=3, height=1, command=lambda: self.manual_command("down"))
+        btn_left = tk.Button(frame, text="←", font=("Arial", 28), width=3, height=1, command=lambda: self.manual_command("left"))
+        btn_right = tk.Button(frame, text="→", font=("Arial", 28), width=3, height=1, command=lambda: self.manual_command("right"))
+        
+        btn_up.grid(row=0, column=1, pady=10)
+        btn_left.grid(row=1, column=0, padx=10)
+        btn_right.grid(row=1, column=2, padx=10)
+        btn_down.grid(row=2, column=1, pady=10)
+        
+        self.manual_control_frame = frame
+
 
     def _create_canvas(self):
         self.canvas = tk.Canvas(self.root, bg="black", width=780, height=475,
@@ -120,6 +158,8 @@ class App:
         self.btn_no.place_forget()
         self.fe_frame.place_forget()
         self.letter_frame.place_forget()
+        self.manual_control_frame.place_forget()  # <--- Yön tuşlarını gizle
+
         if self.confirmed_mode == "Mod 2":
             self.fe_frame.place(x=1000, y=50, width=220, height=80)
         elif self.confirmed_mode == "Mod 3":
@@ -129,6 +169,9 @@ class App:
             self.confirmed_letter = None
             self.detected_shape = None
             self.confirmed_shape = None
+        elif self.confirmed_mode == "Manuel":
+            self.manual_control_frame.place(x=1000, y=200, width=300, height=300)  # <--- Yön tuşlarını göster
+
 
     def reject_mode(self):
         self.mode.set(self.confirmed_mode)
@@ -245,26 +288,40 @@ class App:
     def start(self):
         if not self.running:
             self.running = True
-            threading.Thread(target=self.video_loop, daemon=True).start()
+            self.video_thread = threading.Thread(target=self.video_loop, daemon=True)
+            self.video_thread.start()
+
 
     def stop(self):
         self.running = False
+        if hasattr(self, "cap") and self.cap.isOpened():
+            self.cap.release()
+        if self.video_thread and self.video_thread.is_alive():
+            self.video_thread.join(timeout=2)  # thread kapanmasını bekle
+        print("Program durduruluyor...")
+        self.root.after(0, self.root.destroy)
+
+
 
     def video_loop(self):
-        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 780)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 780)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
         while self.running:
-            ret, frame = cap.read()
+            ret, frame = self.cap.read()
             if not ret:
                 break
             mode = self.confirmed_mode
             ann = frame.copy()
 
-            if mode in ("Manuel", "Mod 1", "Mod 2"):
+            if mode == "Manuel":
+                # sadece ham video göster
+                ann = frame.copy()
+            elif mode == "Mod 1" or mode == "Mod 2":
                 results = self.model(frame, imgsz=640)[0]
                 for box, cls in zip(results.boxes.xyxy.cpu().numpy(),
-                                     results.boxes.cls.cpu().numpy()):
+                                    results.boxes.cls.cpu().numpy()):
                     if results.names[int(cls)] != "balloon":
                         continue
                     x1,y1,x2,y2 = map(int, box)
@@ -299,9 +356,18 @@ class App:
             self.canvas.create_image(0, 0, anchor="nw", image=img)
             self.canvas.image = img
 
-        cap.release()
+        self.cap.release()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
     app = App(root)
+
+    def signal_handler(sig, frame):
+        print("CTRL+C algılandı. Program kapatılıyor...")
+        app.stop()
+
+    signal.signal(signal.SIGINT, signal_handler)
+
     root.mainloop()
+

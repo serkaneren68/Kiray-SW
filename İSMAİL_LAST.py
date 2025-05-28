@@ -14,14 +14,14 @@ import sys
 
 # Renk aralıkları tanımı
 COLOR_RANGES = {
-    "Kırmızı": [
+    "kirmizi": [
         (np.array([0, 100, 100]), np.array([10, 255, 255])),
         (np.array([160, 100, 100]), np.array([179, 255, 255]))
     ],
-    "Yeşil": [
+    "yesil": [
         (np.array([35, 100, 100]), np.array([85, 255, 255]))
     ],
-    "Mavi": [
+    "mavi": [
         (np.array([100, 100, 100]), np.array([135, 255, 255]))
     ]
 }
@@ -281,7 +281,7 @@ class App:
         if circularity >= 0.80:
             return "Daire"
         elif len(approx) == 3:
-            return "Üçgen"
+            return "ucgen"
         elif len(approx) == 4:
             # istenirse kare/dikdörtgen ayrımı eklenebilir, ama biz hep "Kare" diyoruz
             return "Kare"

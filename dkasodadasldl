@@ -1,0 +1,202 @@
+[33mcommit 1a9eebcf11d5f6bd1f55ed0aed10c4ceea819ca2[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Sat Jul 12 13:58:06 2025 +0300
+
+    Initial clean commit without venv and large files
+
+[33mcommit edd2490190ba12139267ccc1879264a9f1f8eb62[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Sat Jul 12 13:48:25 2025 +0300
+
+    asd
+
+[33mcommit ffe1f00b78519c09690d875e2b4585d9112dc899[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Sat Jul 12 13:29:05 2025 +0300
+
+    modular
+
+[33mcommit 6a0b942b15ffb311346f005d3be8d6594722dd91[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Wed May 28 21:59:34 2025 +0300
+
+    most recent modular version
+
+[33mcommit bff0cb39b3ca776f2d582c1eb6f7e0642d0efea3[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Wed May 28 21:55:41 2025 +0300
+
+    most recent modular version
+
+[33mcommit f5923bc980d217d072aa12c2936a42ce1e9b9223[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Wed May 28 21:53:01 2025 +0300
+
+    most recent modular version
+
+[33mcommit 81014e03d4b20de0cc46be3d63f46bc43e5a99e0[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Wed May 28 21:24:20 2025 +0300
+
+    most recent modular version
+
+[33mcommit 900b29ec4858a9ff14bb201baf11ccd97c112fce[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Wed May 28 21:17:45 2025 +0300
+
+    most recent modular version
+
+[33mcommit 805997a1b0b0624f61fe8eba3a6382db306a0e28[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Thu May 8 21:02:49 2025 +0300
+
+    crosshair eklendi
+
+[33mcommit 60aac9cbd86511a79f86dadfa9cdc293ccecb0d5[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Thu May 8 19:31:31 2025 +0300
+
+    arayüz
+
+[33mcommit 46238c84291942cc0d10989f8269ca245f02cc94[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Thu May 8 18:35:23 2025 +0300
+
+    .
+
+[33mcommit 39d82c5572f945593044988366c8c8295b4d9038[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Thu May 8 17:38:12 2025 +0300
+
+    .
+
+[33mcommit 6cf2a52a48bf4130ddad46a29138eca3da4b49ce[m
+Author: İsmail Yazıcıoğlu <yaziciogluismaill@gmail.com>
+Date:   Thu May 8 15:16:59 2025 +0300
+
+    .
+
+[33mcommit 383f1bd6f8e8fdcb7f46ade5a245268cc8df4dcc[m
+Author: İsmail Yazıcıoğlu <yaziciogluismaill@gmail.com>
+Date:   Wed May 7 21:16:08 2025 +0300
+
+    Yeni güncellemeyle harf tespiti qr kod üzerinden yapılıyor
+
+[33mcommit 832d80d5117cc6ac5e6af4dca8ec0fda8409b94f[m
+Author: İsmail Yazıcıoğlu <yaziciogluismaill@gmail.com>
+Date:   Wed May 7 20:51:57 2025 +0300
+
+    parçalanmamış mod3 bozuk
+
+[33mcommit bd9e932f5926669358175639fc6d34ae9f074a82[m
+Author: İsmail Yazıcıoğlu <yaziciogluismaill@gmail.com>
+Date:   Sat May 3 15:19:59 2025 +0300
+
+    ekledim
+
+[33mcommit 9aa5d9fcf2a5dd69c807ba20495d24f4cd3227c5[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Sat May 3 12:22:22 2025 +0300
+
+    divided into modules
+
+[33mcommit 3abf230d0cb680ce3853407bbf07716e46943df0[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Sat May 3 11:00:27 2025 +0300
+
+    mod3 updated
+
+[33mcommit a5b5758151ceb08ed3c16c19e0c5fd5945e02482[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Wed Apr 30 20:31:21 2025 +0300
+
+    gui last version with mode 3
+
+[33mcommit bafc8bdbe22c3434bca88e0d70ca2e99cebb1226[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Mon Apr 21 16:59:34 2025 +0300
+
+    txt to py
+
+[33mcommit 9233cfa4b75eb76ae3806a5a324c4ef5df3830df[m
+Author: İsmail Yazıcıoğlu <yaziciogluismaill@gmail.com>
+Date:   Mon Apr 21 16:57:23 2025 +0300
+
+    gpt
+
+[33mcommit c9a10d89314eef7b818123ccf8e406b9843ba4cb[m
+Merge: 548deeba 81b150ab
+Author: İsmail Yazıcıoğlu <yaziciogluismaill@gmail.com>
+Date:   Mon Apr 21 16:55:45 2025 +0300
+
+    Merge branch 'main' of https://github.com/serkaneren68/Kiray-SW
+
+[33mcommit 81b150abb57db9314fb3d2b19c2250861bca0a75[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Mon Apr 21 16:54:28 2025 +0300
+
+    yolov8
+
+[33mcommit 548deeba7a4e90a875798f69cb138ee9c191bc5b[m
+Author: İsmail Yazıcıoğlu <yaziciogluismaill@gmail.com>
+Date:   Mon Apr 21 16:48:57 2025 +0300
+
+    Kareye alırken dalgalanmalar oluşturuyor. İyi durumda değil
+
+[33mcommit b651cea2acad08c83be4778f4ce189c2fab02686[m
+Merge: 1459be71 8b2f5d26
+Author: serkaneren68 <serkaneren68@gmail.com>
+Date:   Mon Apr 21 15:46:12 2025 +0200
+
+    cleaning
+
+[33mcommit 1459be714ee0026520ad583d8cb0fd511fabfe9b[m
+Author: serkaneren68 <serkaneren68@gmail.com>
+Date:   Mon Apr 21 15:43:12 2025 +0200
+
+    Cleaning
+
+[33mcommit 8b2f5d2660b4f917add15685738850448cf8e0bc[m
+Author: İsmail Yazıcıoğlu <yaziciogluismaill@gmail.com>
+Date:   Mon Apr 21 16:42:30 2025 +0300
+
+    bi mesaj
+
+[33mcommit 4f00130ffbb414e73d80cf12473461d7f2269f93[m
+Author: İsmail Yazıcıoğlu <yaziciogluismaill@gmail.com>
+Date:   Mon Apr 21 16:38:44 2025 +0300
+
+    sad
+
+[33mcommit 1bf49d0c289060bb89e003dc6f3bfcd622b51262[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Mon Apr 21 16:34:23 2025 +0300
+
+    committed
+
+[33mcommit bc4c03222664930bc1438c953f8738a7cb4bbde2[m
+Author: serkaneren68 <serkaneren68@gmail.com>
+Date:   Mon Apr 21 15:32:04 2025 +0200
+
+    tst2
+
+[33mcommit bd17b72dac4c5ccc3f630428725ccb4cd56b1c75[m
+Merge: e35c5dc6 11feeec7
+Author: serkaneren68 <54206077+serkaneren68@users.noreply.github.com>
+Date:   Mon Apr 21 15:09:23 2025 +0200
+
+    Merge pull request #1 from mustafabasarann/main
+    
+    test test
+
+[33mcommit 11feeec72f07217245df61fdd3ab2b1fdfc0ac54[m
+Author: mustafabasarann <mustafabasaran329@gmail.com>
+Date:   Mon Apr 21 16:05:09 2025 +0300
+
+    test test
+
+[33mcommit e35c5dc6ce96d7fe2d8a5dbb4247cf5ad701e6b4[m
+Author: serkaneren68 <54206077+serkaneren68@users.noreply.github.com>
+Date:   Mon Apr 21 14:59:10 2025 +0200
+
+    Create read.me

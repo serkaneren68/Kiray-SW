@@ -1,8 +1,0 @@
-tkinter
-opencv-python
-Pillow
-ultralytics
-numpy
-pyserial
-lap
-cython-bbox

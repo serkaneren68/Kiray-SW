@@ -7,7 +7,7 @@ from tkinter import messagebox
 
 from config.constants import *
 from gui.frames import *
-from gui.controls import *
+from gui.controls import ManualControls, TrackingControls, MainControls
 from camera.camera_manager import CameraManager
 from arduino.arduino_controller import ArduinoController
 from detection.object_detector import ObjectDetector
@@ -72,7 +72,58 @@ class MainWindow:
         
         self.main_controls = MainControls(self.root, self.start, self.stop, self.reset_system)
         self.main_controls.place(30, 700)
+
+        self.root.bind('<KeyPress>', self.on_key_press)
+        self.root.bind('<KeyRelease>', self.on_key_release)
+        
+        # Aktif tuşları takip et
+        self.pressed_keys = set()
     
+    def on_key_press(self, event):
+        """Klavye tuşuna basıldığında"""
+        if self.confirmed_mode != "Manuel":
+            return
+        
+        key = event.keysym
+    
+        # Tuş zaten basılıysa tekrar gönderme
+        if key in self.pressed_keys:
+            return
+        
+        self.pressed_keys.add(key)
+        
+        # Yön tuşları kontrolü
+        if hasattr(self, 'manual_controls'):
+            if key == 'Up':
+                self.manual_controls.start_movement('up')
+            elif key == 'Down':
+                self.manual_controls.start_movement('down')
+            elif key == 'Left':
+                self.manual_controls.start_movement('left')
+            elif key == 'Right':
+                self.manual_controls.start_movement('right')
+            elif key == 'space':  # Space tuşu atış için
+                self.manual_command('shot')
+            elif key == 'Escape':  # ESC tuşu durdurma için
+                self.manual_command('stop')
+            elif key == 'Home':  # Home tuşu
+                self.manual_command('home')
+
+    def on_key_release(self, event):
+        """Klavye tuşu bırakıldığında"""
+        if self.confirmed_mode != "Manuel":
+            return
+        
+        key = event.keysym
+        
+        # Tuşu basılı listesinden çıkar
+        self.pressed_keys.discard(key)
+        
+        # Yön tuşları bırakıldığında dur
+        if hasattr(self, 'manual_controls'):
+            if key in ['Up', 'Down', 'Left', 'Right']:
+                self.manual_controls.stop_movement(key.lower())
+
     def on_mode_change(self, *args):
         idx = ["Manuel", "Mod 1", "Mod 2", "Mod 3"].index(self.mode.get())
         self.mode_frame.show_confirm_buttons(idx)
@@ -111,8 +162,14 @@ class MainWindow:
         self.manual_controls.place_forget()
         self.restricted_area_frame.place_forget()
     
-    def manual_command(self, direction):
-        self.arduino_controller.send_command(direction)
+    # manual_command metodunu güncelle
+    def manual_command(self, command):
+        self.arduino_controller.send_command(command)
+        
+        # Pozisyon güncellemesi al
+        if hasattr(self, 'manual_controls'):
+            yaw, pitch = self.arduino_controller.get_position()
+            self.manual_controls.update_position(yaw, pitch)
     
     def toggle_tracking(self):
         self.tracking_enabled = not self.tracking_enabled

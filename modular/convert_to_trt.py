@@ -2,7 +2,7 @@
 from ultralytics import YOLO
 
 # PT modelinizi yükleyin
-model = YOLO("ikinci.pt")
+model = YOLO("sonuncu.pt")
 
 # Engine formatına dönüştürün
 model.export(

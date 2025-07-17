@@ -8,7 +8,7 @@ class ArduinoController:
     def __init__(self, port='COM3', baudrate=9600):
         self.arduino = None
         self.last_command_time = 0
-        self.command_delay = 0.05  # 50ms delay
+        self.command_delay = 0.03  # 50ms delay
         self.current_yaw = 0
         self.current_pitch = 0
         self.current_speed = 50

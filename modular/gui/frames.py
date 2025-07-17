@@ -119,21 +119,104 @@ class RestrictedAreaFrame:
 
 class CameraSelectionFrame:
     def __init__(self, parent, apply_callback):
-        self.frame = tk.LabelFrame(parent, text="Kamera Seçimi", 
+        self.frame = tk.LabelFrame(parent, text="Kamera Ayarları", 
                                   bg="black", fg="yellow", bd=1)
         
-        lbl = tk.Label(self.frame, text="Kamera İndeksi:", bg="black", fg="white")
+        # Kamera indeksi
+        index_frame = tk.Frame(self.frame, bg="black")
+        index_frame.pack(pady=5)
+        
+        lbl = tk.Label(index_frame, text="Kamera İndeksi:", bg="black", fg="white")
         lbl.pack(side=tk.LEFT, padx=5)
         
         self.camera_var = tk.StringVar(value="0")
-        camera_entry = tk.Entry(self.frame, textvariable=self.camera_var, width=5)
+        camera_entry = tk.Entry(index_frame, textvariable=self.camera_var, width=5)
         camera_entry.pack(side=tk.LEFT, padx=5)
         
-        btn_apply = tk.Button(self.frame, text="Uygula", command=apply_callback)
-        btn_apply.pack(side=tk.LEFT, padx=5)
+        # Dönüşüm kontrolleri
+        transform_frame = tk.Frame(self.frame, bg="black")
+        transform_frame.pack(pady=5)
+        
+        # 90 derece döndürme checkbox
+        self.rotate_var = tk.BooleanVar(value=False)
+        self.rotate_check = tk.Checkbutton(
+            transform_frame, 
+            text="90° Döndür", 
+            variable=self.rotate_var,
+            bg="black", 
+            fg="white",
+            selectcolor="black",
+            command=apply_callback
+        )
+        self.rotate_check.grid(row=0, column=0, padx=5, pady=2)
+        
+        # Yatay aynalama checkbox
+        self.flip_h_var = tk.BooleanVar(value=False)
+        self.flip_h_check = tk.Checkbutton(
+            transform_frame, 
+            text="Yatay Aynala", 
+            variable=self.flip_h_var,
+            bg="black", 
+            fg="white",
+            selectcolor="black",
+            command=apply_callback
+        )
+        self.flip_h_check.grid(row=0, column=1, padx=5, pady=2)
+        
+        # Dikey aynalama checkbox
+        self.flip_v_var = tk.BooleanVar(value=False)
+        self.flip_v_check = tk.Checkbutton(
+            transform_frame, 
+            text="Dikey Aynala", 
+            variable=self.flip_v_var,
+            bg="black", 
+            fg="white",
+            selectcolor="black",
+            command=apply_callback
+        )
+        self.flip_v_check.grid(row=1, column=0, padx=5, pady=2)
+        
+        # 180 derece döndürme kısayolu
+        self.rotate_180_btn = tk.Button(
+            transform_frame,
+            text="180° Döndür",
+            command=self.rotate_180,
+            bg="gray20",
+            fg="white",
+            font=("Arial", 9)
+        )
+        self.rotate_180_btn.grid(row=1, column=1, padx=5, pady=2)
+        
+        # Uygula butonu
+        btn_apply = tk.Button(self.frame, text="Uygula", command=apply_callback, 
+                             bg="green", fg="white", font=("Arial", 10, "bold"))
+        btn_apply.pack(pady=5)
+    
+    def rotate_180(self):
+        """180 derece döndürme = hem yatay hem dikey aynalama"""
+        current_h = self.flip_h_var.get()
+        current_v = self.flip_v_var.get()
+        
+        # Her ikisi de kapalıysa veya sadece biri açıksa, her ikisini de aç
+        if not (current_h and current_v):
+            self.flip_h_var.set(True)
+            self.flip_v_var.set(True)
+        else:
+            # Her ikisi de açıksa, kapat
+            self.flip_h_var.set(False)
+            self.flip_v_var.set(False)
     
     def get_camera_index(self):
         return self.camera_var.get()
+    
+    def get_rotate_90(self):
+        return self.rotate_var.get()
+    
+    def get_flip_horizontal(self):
+        return self.flip_h_var.get()
+    
+    def get_flip_vertical(self):
+        return self.flip_v_var.get()
     
     def place(self, x, y, width, height):
         self.frame.place(x=x, y=y, width=width, height=height)

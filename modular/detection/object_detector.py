@@ -8,7 +8,7 @@ from detection.tracker import ObjectTracker
 
 
 class ObjectDetector:
-    def __init__(self, model_path="ikinci.engine"):
+    def __init__(self, model_path="sonuncu.engine"):
         try:
             self.model = YOLO(model_path)
         except Exception as e:

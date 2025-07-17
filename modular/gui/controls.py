@@ -202,8 +202,24 @@ class ManualControls:
     def continuous_move(self):
         if self.continuous_movement and self.current_direction:
             self.command_callback(self.current_direction)
-            # 100ms sonra tekrar çağır
-            self.frame.after(100, self.continuous_move)
+            # Daha sık komut gönder (50ms yerine)
+            self.frame.after(50, self.continuous_move)
+
+    def stop_movement(self, direction):
+        # Buton vurgusunu kaldır
+        button_map = {
+            'up': self.btn_up,
+            'down': self.btn_down,
+            'left': self.btn_left,
+            'right': self.btn_right
+        }
+        
+        if direction in button_map:
+            button_map[direction].config(relief=tk.RAISED, bg="SystemButtonFace")
+        
+        # Her zaman dur komutu gönder
+        self.continuous_movement = False
+        self.command_callback("stop")
     
     def send_step_command(self, direction):
         # Adım büyüklüğü ile birlikte komut gönder

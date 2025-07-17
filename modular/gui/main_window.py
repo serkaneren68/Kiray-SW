@@ -197,10 +197,24 @@ class MainWindow:
     
     def apply_camera_index(self):
         try:
+            # Kamera indeksi
             new_index = int(self.camera_frame.get_camera_index())
             self.camera_index = new_index
             self.camera_manager.camera_index = new_index
-            messagebox.showinfo("Bilgi", f"Kamera indeksi {new_index} olarak ayarlandı")
+            
+            # Dönüşüm ayarları
+            rotate_90 = self.camera_frame.get_rotate_90()
+            flip_horizontal = self.camera_frame.get_flip_horizontal()
+            flip_vertical = self.camera_frame.get_flip_vertical()
+            
+            self.camera_manager.set_transformations(rotate_90, flip_horizontal, flip_vertical)
+            
+            messagebox.showinfo("Bilgi", 
+                f"Kamera ayarları güncellendi:\n"
+                f"İndeks: {new_index}\n"
+                f"90° Döndür: {rotate_90}\n"
+                f"Yatay Aynala: {flip_horizontal}\n"
+                f"Dikey Aynala: {flip_vertical}")
             
             if self.running:
                 self.stop()
@@ -209,7 +223,7 @@ class MainWindow:
                 
         except ValueError:
             messagebox.showerror("Hata", "Geçerli bir sayı giriniz")
-    
+        
     def accept_engagement(self):
         if self.awaiting_confirmation:
             self.letter_frame.update_letter(self.confirmed_letter)

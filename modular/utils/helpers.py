@@ -1,6 +1,5 @@
 import cv2
 
-
 def add_crosshair(frame):
     """Frame'e crosshair (çapraz çizgi) ekler"""
     h, w = frame.shape[:2]

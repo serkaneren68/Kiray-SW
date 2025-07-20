@@ -219,4 +219,4 @@ class CameraSelectionFrame:
         return self.flip_v_var.get()
     
     def place(self, x, y, width, height):
-        self.frame.place(x=x, y=y, width=width, height=height)
+        self.frame.place(x=1200, y=600, width=width, height=height)

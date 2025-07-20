@@ -161,7 +161,6 @@ class ManualControls:
             btn.bind('<ButtonPress-1>', lambda e, d=direction: self.start_movement(d))
             btn.bind('<ButtonRelease-1>', lambda e, d=direction: self.stop_movement(d))
     
-    # start_movement metodunu güncelleyin
     def start_movement(self, direction):
         # Butonu vurgula
         button_map = {
@@ -175,6 +174,11 @@ class ManualControls:
             button_map[direction].config(relief=tk.SUNKEN, bg="lightgreen")
         
         if self.movement_mode.get() == "continuous":
+            # Sürekli mod için önce C komutu gönder
+            if not self.continuous_movement:
+                self.command_callback("C")  # Continuous mode'u aç
+                time.sleep(0.05)
+            
             self.continuous_movement = True
             self.current_direction = direction
             self.continuous_move()
@@ -182,7 +186,6 @@ class ManualControls:
             # Adım adım hareket
             self.send_step_command(direction)
 
-    # stop_movement metodunu güncelleyin
     def stop_movement(self, direction):
         # Buton vurgusunu kaldır
         button_map = {
@@ -195,14 +198,16 @@ class ManualControls:
         if direction in button_map:
             button_map[direction].config(relief=tk.RAISED, bg="SystemButtonFace")
         
-        if self.movement_mode.get() == "continuous":
+        if self.movement_mode.get() == "continuous" and self.continuous_movement:
             self.continuous_movement = False
             self.command_callback("stop")
-    
+            time.sleep(0.05)
+            self.command_callback("C")  # Continuous mode'u kapat
+
     def continuous_move(self):
         if self.continuous_movement and self.current_direction:
+            # Her 50ms'de bir komut gönder
             self.command_callback(self.current_direction)
-            # Daha sık komut gönder (50ms yerine)
             self.frame.after(50, self.continuous_move)
 
     def stop_movement(self, direction):
@@ -248,7 +253,7 @@ class ManualControls:
         self.pitch_pos_label.config(text=f"{pitch}°")
     
     def place(self, x, y, width, height):
-        self.frame.place(x=x, y=y, width=width, height=height)
+        self.frame.place(x=x, y=y, width=350, height=400)
     
     def place_forget(self):
         self.continuous_movement = False  # Gizlerken hareketi durdur

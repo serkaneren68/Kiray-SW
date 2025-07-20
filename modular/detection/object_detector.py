@@ -189,3 +189,124 @@ class ObjectDetector:
             traceback.print_exc()
             
         return ann, None, []
+
+    def detect_and_track_target(self, frame, mode, locked_box):
+        """Kilitlenmiş hedefi takip et, başka hedeflere geçme"""
+        if not self.model:
+            return frame, None, []
+        
+        ann = frame.copy()
+        current_target_box = None
+        all_boxes = []
+        
+        try:
+            results = self.model(frame, imgsz=640)[0]
+            
+            if len(results.boxes) == 0:
+                return ann, None, []
+            
+            # Tüm balonları bul
+            all_detections = []
+            for i in range(len(results.boxes)):
+                box = results.boxes.xyxy[i].cpu().numpy()
+                cls = int(results.boxes.cls[i].cpu().numpy())
+                conf = float(results.boxes.conf[i].cpu().numpy())
+                
+                if results.names[cls] != "balloon":
+                    continue
+                
+                x1, y1, x2, y2 = map(int, box)
+                all_detections.append([x1, y1, x2, y2, conf])
+                all_boxes.append([x1, y1, x2, y2])
+            
+            if not all_detections:
+                return ann, None, []
+            
+            # Kilitli hedefin mevcut pozisyonunu bul
+            # IoU (Intersection over Union) kullanarak eşleştir
+            best_iou = 0
+            best_match = None
+            
+            locked_x1, locked_y1, locked_x2, locked_y2 = locked_box
+            locked_center_x = (locked_x1 + locked_x2) / 2
+            locked_center_y = (locked_y1 + locked_y2) / 2
+            
+            for det in all_detections:
+                x1, y1, x2, y2, conf = det
+                
+                # IoU hesapla
+                iou = self.calculate_iou(locked_box, [x1, y1, x2, y2])
+                
+                # Ayrıca merkez noktası mesafesini kontrol et
+                center_x = (x1 + x2) / 2
+                center_y = (y1 + y2) / 2
+                distance = np.sqrt((center_x - locked_center_x)**2 + 
+                                (center_y - locked_center_y)**2)
+                
+                # IoU > 0.3 veya merkez mesafesi < 100 piksel ise aynı hedef
+                if iou > 0.3 or (iou > 0.1 and distance < 100):
+                    if iou > best_iou:
+                        best_iou = iou
+                        best_match = det
+            
+            if best_match is not None:
+                # Kilitli hedef bulundu
+                x1, y1, x2, y2, conf = best_match
+                current_target_box = [x1, y1, x2, y2]
+                
+                # Kilitli hedefi çiz - KIRMIZI
+                cv2.rectangle(ann, (x1, y1), (x2, y2), (0, 0, 255), 3)
+                cv2.putText(ann, f"KiLiTLi {conf:.2f}", (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                
+                # Merkez noktası
+                center_x = (x1 + x2) // 2
+                center_y = (y1 + y2) // 2
+                cv2.circle(ann, (center_x, center_y), 5, (0, 0, 255), -1)
+                
+                # Crosshair'e olan çizgi
+                h, w = frame.shape[:2]
+                cv2.line(ann, (center_x, center_y), (w//2, h//2), 
+                        (0, 255, 255), 2)
+                
+                # IoU değerini göster
+                cv2.putText(ann, f"IoU: {best_iou:.2f}", 
+                        (x1, y2 + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                
+                # Diğer balonları GRİ ile göster (hedef değil)
+                for det in all_detections:
+                    if det is not best_match:
+                        dx1, dy1, dx2, dy2, dconf = det
+                        cv2.rectangle(ann, (dx1, dy1), (dx2, dy2), (128, 128, 128), 1)
+                        cv2.putText(ann, "DiGER", (dx1, dy1 - 5),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (128, 128, 128), 1)
+            
+            return ann, current_target_box, all_boxes
+            
+        except Exception as e:
+            print(f"Hedef takip hatası: {e}")
+            return ann, None, []
+
+    def calculate_iou(self, box1, box2):
+        """İki kutunun IoU (Intersection over Union) değerini hesapla"""
+        x1_1, y1_1, x2_1, y2_1 = box1
+        x1_2, y1_2, x2_2, y2_2 = box2
+        
+        # Kesişim alanı
+        xi1 = max(x1_1, x1_2)
+        yi1 = max(y1_1, y1_2)
+        xi2 = min(x2_1, x2_2)
+        yi2 = min(y2_1, y2_2)
+        
+        if xi2 < xi1 or yi2 < yi1:
+            return 0.0
+        
+        intersection = (xi2 - xi1) * (yi2 - yi1)
+        
+        # Birleşim alanı
+        box1_area = (x2_1 - x1_1) * (y2_1 - y1_1)
+        box2_area = (x2_2 - x1_2) * (y2_2 - y1_2)
+        union = box1_area + box2_area - intersection
+        
+        return intersection / union if union > 0 else 0

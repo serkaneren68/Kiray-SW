@@ -24,59 +24,26 @@ class ArduinoController:
             self.arduino = None
     
     def send_command(self, command):
-        current_time = time.time()
-        if current_time - self.last_command_time < self.command_delay:
-            return
-            
-        self.last_command_time = current_time
-        
         if not self.arduino:
             return
         
         try:
-            # Basit komutlar (eski sistem)
+            # Mod 1 için hassas hareket
+            if hasattr(self, 'current_mode') and self.current_mode == "Mod 1":
+                # Daha yavaş ve hassas hareket için
+                if command in ['up', 'down', 'left', 'right']:
+                    # Küçük adımlarla hareket
+                    self.arduino.write(f"{command[0].upper()}5\n".encode())  # 5 derece
+                    return
+            
+            # Normal komutlar
             if command in ARDUINO_COMMANDS:
                 self.arduino.write(ARDUINO_COMMANDS[command])
-                print(f"{command.capitalize()} komutu gönderildi")
-            
-            # Gelişmiş komutlar
-            elif ":" in command:
-                cmd_type, value = command.split(":", 1)
-                
-                if cmd_type == "speed":
-                    # Hız komutu: V<hız_değeri>
-                    self.arduino.write(f"V{value}\n".encode())
-                    self.current_speed = int(value)
-                    print(f"Hız ayarlandı: {value}%")
-                
-                elif cmd_type in ["up", "down", "left", "right"]:
-                    # Adım komutu: <yön>:<adım>
-                    step_value = int(value)
-                    if cmd_type == "up":
-                        self.arduino.write(f"U{step_value}\n".encode())
-                        self.current_pitch += step_value
-                    elif cmd_type == "down":
-                        self.arduino.write(f"D{step_value}\n".encode())
-                        self.current_pitch -= step_value
-                    elif cmd_type == "left":
-                        self.arduino.write(f"L{step_value}\n".encode())
-                        self.current_yaw -= step_value
-                    elif cmd_type == "right":
-                        self.arduino.write(f"R{step_value}\n".encode())
-                        self.current_yaw += step_value
-                    print(f"{cmd_type} {step_value} derece")
-            
-            elif command == "home":
-                # Home komutu
-                self.arduino.write(b"H\n")
-                self.current_yaw = 0
-                self.current_pitch = 0
-                print("Home pozisyonuna dönülüyor")
-            
-            # Arduino'dan gelen cevapları oku
-            if self.arduino.in_waiting > 0:
-                response = self.arduino.readline().decode('utf-8').strip()
-                self.process_response(response)
+                print(f"[Arduino] Komut: {command}")
+            elif command == "stop":
+                self.arduino.write(b'X')
+            else:
+                self.arduino.write(f"{command}\n".encode())
                 
         except Exception as e:
             print(f"Komut gönderme hatası: {e}")

@@ -81,8 +81,6 @@ class ObjectDetector:
                 return ann, None, []
             
             # Tespitleri topla
-            enemy_detections = []  # Sadece düşman tespitleri
-            
             for i in range(len(results.boxes)):
                 box = results.boxes.xyxy[i].cpu().numpy()
                 cls = int(results.boxes.cls[i].cpu().numpy())
@@ -93,39 +91,39 @@ class ObjectDetector:
                 
                 x1, y1, x2, y2 = map(int, box)
                 
-                # MOD 2 İÇİN RENK TESPİTİ
-                if mode == "Mod 2":
+                # MOD 1 - TÜM BALONLARI GÖSTER
+                if mode == "Mod 1":
+                    detections.append([float(x1), float(y1), float(x2), float(y2), conf])
+                    
+                    # BOUNDING BOX'I HER ZAMAN ÇİZ
+                    cv2.rectangle(ann, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(ann, f"balloon {conf:.2f}", (x1, y1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                
+                # MOD 2 - RENK TESPİTİ
+                elif mode == "Mod 2":
                     roi = frame[y1:y2, x1:x2]
                     if roi.size > 0:
                         clr = self.color_detector.detect_color(roi)
                         if clr and clr.upper() == "KIRMIZI":
-                            # SADECE DÜŞMAN (KIRMIZI) HEDEFLERİ EKLE
-                            enemy_detections.append([float(x1), float(y1), float(x2), float(y2), conf])
-                            
-                            # Görselleştirme
+                            detections.append([float(x1), float(y1), float(x2), float(y2), conf])
                             cv2.rectangle(ann, (x1, y1), (x2, y2), (0, 0, 255), 2)
                             cv2.putText(ann, f"DUSMAN {conf:.2f}", (x1, y1 - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
                         elif clr and clr.upper() == "MAVI":
-                            # DOST hedefleri göster ama takip etme
                             cv2.rectangle(ann, (x1, y1), (x2, y2), (255, 0, 0), 2)
                             cv2.putText(ann, f"DOST {conf:.2f}", (x1, y1 - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
                         else:
-                            # Renk belirlenemedi
                             cv2.rectangle(ann, (x1, y1), (x2, y2), (128, 128, 128), 2)
                             cv2.putText(ann, f"? {conf:.2f}", (x1, y1 - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (128, 128, 128), 2)
-                else:
-                    # Mod 1 veya diğer modlar için normal tespit
-                    detections.append([float(x1), float(y1), float(x2), float(y2), conf])
-            
-            # Mod 2'de sadece düşman tespitlerini kullan
-            if mode == "Mod 2":
-                detections = enemy_detections
             
             if len(detections) == 0:
                 return ann, None, []
+            
+            # Tracking işlemleri...
+            # (geri kalan kod aynı)
             
             # Tracking KAPALI ise
             if not self.enable_tracking:

@@ -224,7 +224,7 @@ class ManualControls:
     def send_step_command(self, direction):
         # Adım büyüklüğü ile birlikte komut gönder
         step_size = self.step_size.get()    
-        command = f"{direction}:{step_size}"
+        command = direction
         self.command_callback(command)
     
     def stop_all(self):

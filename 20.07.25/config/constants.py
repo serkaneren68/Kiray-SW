@@ -16,12 +16,12 @@ COLOR_RANGES = {
 
 # Arduino komutları
 ARDUINO_COMMANDS = {
-    'up': b'U',
-    'down': b'D',
-    'left': b'L',
-    'right': b'R',
-    'shot': b'S',
-    'stop': b'X'
+    'up': b'U\n',
+    'down': b'D\n',
+    'left': b'L\n',
+    'right': b'R\n',
+    'shot': b'S\n',
+    'stop': b'X\n'
 }
 
 # GUI ayarları

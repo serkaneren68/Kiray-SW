@@ -309,8 +309,11 @@ class MainWindow:
         # Her iki mod için ortak hedef takip değişkenleri
         target_tracking = {
             'current_target_id': None,
+            'target_bbox': None,  # BBOX'I DA SAKLA
             'target_lost_frames': 0,
-            'max_lost_frames': 10  # 10 frame boyunca görülmezse hedefi bırak
+            'max_lost_frames': 10,
+            'is_locked': False,
+            'first_lock': True  # İLK KİLİTLEME İÇİN
         }
 
         while self.running:
@@ -328,138 +331,79 @@ class MainWindow:
                 ann, box, tracked_objects = self.object_detector.detect_objects(frame, mode)
                 
                 # Takip aktifse
-                if self.tracking_enabled and tracked_objects:
-                    # Mevcut hedef var mı kontrol et
-                    current_target_found = False
-                    target_box = None
-                    
-                    if target_tracking['current_target_id'] is not None:
-                        for obj in tracked_objects:
-                            if obj['id'] == target_tracking['current_target_id']:
-                                current_target_found = True
-                                target_box = obj['bbox']
-                                target_tracking['target_lost_frames'] = 0  # Hedef bulundu, sayacı sıfırla
-                                break
-                    
-                    # Hedef bulunamadıysa
-                    if not current_target_found and target_tracking['current_target_id'] is not None:
-                        target_tracking['target_lost_frames'] += 1
+                if self.tracking_enabled:
+                    # EĞER KİLİTLİ BİR HEDEF VARSA
+                    if target_tracking['is_locked'] and target_tracking['target_bbox'] is not None:
+                        # Mevcut kilitli hedefin pozisyonunu güncelle
+                        x1_old, y1_old, x2_old, y2_old = target_tracking['target_bbox']
+                        cx_old = (x1_old + x2_old) // 2
+                        cy_old = (y1_old + y2_old) // 2
                         
-                        # Hedef çok uzun süre kayıpsa, yeni hedef seç
-                        if target_tracking['target_lost_frames'] > target_tracking['max_lost_frames']:
-                            target_tracking['current_target_id'] = None
-                            target_tracking['target_lost_frames'] = 0
-                            print("Hedef kayboldu, yeni hedef aranıyor...")
-                    
-                    # İlk hedef seçimi veya yeni hedef gerekli
-                    if target_tracking['current_target_id'] is None and tracked_objects:
-                        target_tracking['current_target_id'] = tracked_objects[0]['id']
-                        target_box = tracked_objects[0]['bbox']
-                        print(f"Yeni hedef seçildi: ID {target_tracking['current_target_id']}")
-                    
-                    # Takip kontrolü
-                    if target_box and (current_time - last_tracking_time >= TRACKING_INTERVAL):
-                        yaw_steps, pitch_steps = tracker_calc.calculate_movement(target_box)
-                        
-                        if yaw_steps != 0 or pitch_steps != 0:
-                            self.arduino_controller.send_direct_movement(yaw_steps, pitch_steps)
-                        
-                        last_tracking_time = current_time
-                        
-                        # Takip edilen hedefi özel olarak vurgula
-                        x1, y1, x2, y2 = target_box
-                        cv2.rectangle(ann, (x1-5, y1-5), (x2+5, y2+5), (0, 255, 255), 3)
-                        cv2.putText(ann, f"HEDEF ID:{target_tracking['current_target_id']}", 
-                                (x1, y1-25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-                        
-                        # Hedef merkezi
-                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-                        cv2.circle(ann, (cx, cy), 5, (0, 0, 255), -1)
-                        cv2.drawMarker(ann, (cx, cy), (0, 255, 255), cv2.MARKER_CROSS, 20, 2)
-                        
-                        # Hata bilgisi
-                        error_x = cx - tracker_calc.center_x
-                        error_y = cy - tracker_calc.center_y
-                        cv2.putText(ann, f"Hata: X={error_x}, Y={error_y}", 
-                                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                    
-                    # Hedef kaybı durumu göster
-                    if target_tracking['target_lost_frames'] > 0:
-                        cv2.putText(ann, f"Hedef Kayip: {target_tracking['target_lost_frames']}/10", 
-                                (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-                
-                elif self.tracking_enabled and box and not tracked_objects:
-                    # ByteTrack çalışmıyorsa basit takip
-                    x1, y1, x2, y2 = box
-                    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-                    
-                    cv2.rectangle(ann, (x1-5, y1-5), (x2+5, y2+5), (0, 255, 255), 3)
-                    cv2.circle(ann, (cx, cy), 5, (0, 0, 255), -1)
-                    cv2.putText(ann, "TAKIP", (x1, y1-25), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-                    
-                    if current_time - last_tracking_time >= TRACKING_INTERVAL:
-                        yaw_steps, pitch_steps = tracker_calc.calculate_movement(box)
-                        
-                        if yaw_steps != 0 or pitch_steps != 0:
-                            self.arduino_controller.send_direct_movement(yaw_steps, pitch_steps)
-                        
-                        last_tracking_time = current_time
-                
-                # Takip kapalıysa hedef ID'yi sıfırla
-                if not self.tracking_enabled:
-                    target_tracking['current_target_id'] = None
-                    target_tracking['target_lost_frames'] = 0
-            
-            # MOD 2 - SADECE DÜŞMAN (KIRMIZI) BALONLARI TAKİP ET
-            elif mode == "Mod 2" and self.object_detector.model:
-                ann, box, tracked_objects = self.object_detector.detect_objects(frame, mode)
-                
-                # Takip aktif ve düşman hedef var
-                if self.tracking_enabled and tracked_objects:
-                    # Mevcut hedef hala var mı kontrol et
-                    current_target_found = False
-                    target_box = None
-                    
-                    if target_tracking['current_target_id'] is not None:
-                        for obj in tracked_objects:
-                            if obj['id'] == target_tracking['current_target_id']:
-                                current_target_found = True
-                                target_box = obj['bbox']
-                                target_tracking['target_lost_frames'] = 0
-                                break
-                    
-                    # Hedef bulunamadıysa
-                    if not current_target_found and target_tracking['current_target_id'] is not None:
-                        target_tracking['target_lost_frames'] += 1
-                        
-                        if target_tracking['target_lost_frames'] > target_tracking['max_lost_frames']:
-                            target_tracking['current_target_id'] = None
-                            target_tracking['target_lost_frames'] = 0
-                            print("Düşman hedef kayboldu, yeni düşman aranıyor...")
-                    
-                    # İlk hedef seçimi veya yeni hedef gerekli
-                    if target_tracking['current_target_id'] is None and tracked_objects:
-                        # En yakın düşmanı seç
+                        # En yakın nesneyi bul (ID yerine pozisyon bazlı)
                         min_distance = float('inf')
-                        closest_target = None
+                        closest_box = None
                         
-                        for obj in tracked_objects:
-                            x1, y1, x2, y2 = obj['bbox']
-                            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-                            distance = abs(cx - tracker_calc.center_x) + abs(cy - tracker_calc.center_y)
+                        if tracked_objects:
+                            for obj in tracked_objects:
+                                x1, y1, x2, y2 = obj['bbox']
+                                cx = (x1 + x2) // 2
+                                cy = (y1 + y2) // 2
+                                
+                                # Eski pozisyona olan mesafe
+                                distance = ((cx - cx_old)**2 + (cy - cy_old)**2)**0.5
+                                
+                                if distance < min_distance and distance < 100:  # 100 piksel içinde
+                                    min_distance = distance
+                                    closest_box = obj['bbox']
+                                    target_tracking['current_target_id'] = obj['id']
+                        
+                        elif box:  # ByteTrack çalışmıyorsa
+                            x1, y1, x2, y2 = box
+                            cx = (x1 + x2) // 2
+                            cy = (y1 + y2) // 2
+                            distance = ((cx - cx_old)**2 + (cy - cy_old)**2)**0.5
                             
-                            if distance < min_distance:
-                                min_distance = distance
-                                closest_target = obj
+                            if distance < 100:  # 100 piksel içinde
+                                closest_box = box
                         
-                        if closest_target:
-                            target_tracking['current_target_id'] = closest_target['id']
-                            target_box = closest_target['bbox']
-                            print(f"Yeni düşman hedef seçildi: ID {target_tracking['current_target_id']}")
+                        # Hedef bulunduysa güncelle
+                        if closest_box:
+                            target_tracking['target_bbox'] = closest_box
+                            target_tracking['target_lost_frames'] = 0
+                            target_box = closest_box
+                        else:
+                            # Hedef kayıp
+                            target_tracking['target_lost_frames'] += 1
+                            target_box = None
+                            
+                            if target_tracking['target_lost_frames'] > target_tracking['max_lost_frames']:
+                                print("Hedef tamamen kayboldu, kilit açılıyor")
+                                target_tracking['is_locked'] = False
+                                target_tracking['current_target_id'] = None
+                                target_tracking['target_bbox'] = None
+                                target_tracking['first_lock'] = True
                     
-                    # Hedef takibi
-                    if target_box and (current_time - last_tracking_time >= TRACKING_INTERVAL):
+                    # İLK HEDEF SEÇİMİ (sadece kilitli değilse ve ilk sefer)
+                    elif not target_tracking['is_locked'] and target_tracking['first_lock']:
+                        if tracked_objects and len(tracked_objects) > 0:
+                            # İlk nesneyi seç ve HEMEN kilitle
+                            first_obj = tracked_objects[0]
+                            target_tracking['current_target_id'] = first_obj['id']
+                            target_tracking['target_bbox'] = first_obj['bbox']
+                            target_tracking['is_locked'] = True
+                            target_tracking['first_lock'] = False
+                            target_box = first_obj['bbox']
+                            print(f"İlk hedef kilitlendi: ID {target_tracking['current_target_id']}")
+                        elif box:
+                            # ByteTrack yoksa basit takip
+                            target_tracking['target_bbox'] = box
+                            target_tracking['is_locked'] = True
+                            target_tracking['first_lock'] = False
+                            target_box = box
+                            print("İlk hedef kilitlendi (basit takip)")
+                    
+                    # TAKİP KONTROLÜ - SADECE KİLİTLİ HEDEF İÇİN
+                    if target_tracking['is_locked'] and 'target_box' in locals() and target_box and (current_time - last_tracking_time >= TRACKING_INTERVAL):
                         yaw_steps, pitch_steps = tracker_calc.calculate_movement(target_box)
                         
                         if yaw_steps != 0 or pitch_steps != 0:
@@ -469,52 +413,189 @@ class MainWindow:
                         
                         # Takip edilen hedefi vurgula
                         x1, y1, x2, y2 = target_box
-                        cv2.rectangle(ann, (x1-5, y1-5), (x2+5, y2+5), (0, 255, 255), 3)
-                        cv2.putText(ann, f"HEDEF KILITLI ID:{target_tracking['current_target_id']}", 
-                                (x1, y1-25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                        cv2.rectangle(ann, (x1-5, y1-5), (x2+5, y2+5), (0, 255, 255), 4)
+                        cv2.putText(ann, "KILITLI", (x1, y1-25), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
                         
-                        # Hedef merkezi
-                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-                        cv2.drawMarker(ann, (cx, cy), (0, 0, 255), cv2.MARKER_CROSS, 20, 2)
-                        cv2.circle(ann, (cx, cy), 8, (0, 255, 255), 2)
+                        # Kilit sembolü
+                        cv2.drawMarker(ann, ((x1+x2)//2, (y1+y2)//2), (0, 0, 255), 
+                                    cv2.MARKER_TILTED_CROSS, 30, 3)
                         
                         # Hedef bilgisi
-                        cv2.putText(ann, f"Hedef ID: {target_tracking['current_target_id']}", 
-                                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                        
-                        # Hata bilgisi
+                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
                         error_x = cx - tracker_calc.center_x
                         error_y = cy - tracker_calc.center_y
                         cv2.putText(ann, f"Hata: X={error_x}, Y={error_y}", 
-                                (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                     
-                    # Hedef kaybı durumu
-                    if target_tracking['target_lost_frames'] > 0:
-                        cv2.putText(ann, f"Hedef Kayip: {target_tracking['target_lost_frames']}/10", 
-                                (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                    # Kilit durumu
+                    if target_tracking['is_locked']:
+                        cv2.putText(ann, "HEDEF KILITLI - DEGISTIRILEMEZ", (10, 60), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                        
+                        if target_tracking['target_lost_frames'] > 0:
+                            cv2.putText(ann, f"Hedef Aranıyor: {target_tracking['target_lost_frames']}/{target_tracking['max_lost_frames']}", 
+                                    (10, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
                 
-                elif self.tracking_enabled and box and not tracked_objects:
-                    # ByteTrack çalışmıyorsa basit takip
-                    x1, y1, x2, y2 = box
-                    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                # Takip kapalıysa sıfırla
+                if not self.tracking_enabled:
+                    target_tracking = {
+                        'current_target_id': None,
+                        'target_bbox': None,
+                        'target_lost_frames': 0,
+                        'max_lost_frames': 10,
+                        'is_locked': False,
+                        'first_lock': True
+                    }
+            
+            # MOD 2 - SADECE DÜŞMAN (KIRMIZI) BALONLARI TAKİP ET
+            elif mode == "Mod 2" and self.object_detector.model:
+                ann, box, tracked_objects = self.object_detector.detect_objects(frame, mode)
+                
+                # Takip aktifse
+                if self.tracking_enabled:
+                    # EĞER KİLİTLİ BİR DÜŞMAN HEDEF VARSA
+                    if target_tracking['is_locked'] and target_tracking['target_bbox'] is not None:
+                        # Mevcut kilitli düşman hedefin pozisyonunu güncelle
+                        x1_old, y1_old, x2_old, y2_old = target_tracking['target_bbox']
+                        cx_old = (x1_old + x2_old) // 2
+                        cy_old = (y1_old + y2_old) // 2
+                        
+                        # En yakın düşman nesneyi bul (pozisyon bazlı)
+                        min_distance = float('inf')
+                        closest_box = None
+                        
+                        if tracked_objects:
+                            for obj in tracked_objects:
+                                x1, y1, x2, y2 = obj['bbox']
+                                cx = (x1 + x2) // 2
+                                cy = (y1 + y2) // 2
+                                
+                                # Eski pozisyona olan mesafe
+                                distance = ((cx - cx_old)**2 + (cy - cy_old)**2)**0.5
+                                
+                                if distance < min_distance and distance < 100:  # 100 piksel içinde
+                                    min_distance = distance
+                                    closest_box = obj['bbox']
+                                    target_tracking['current_target_id'] = obj['id']
+                        
+                        elif box:  # ByteTrack çalışmıyorsa
+                            x1, y1, x2, y2 = box
+                            cx = (x1 + x2) // 2
+                            cy = (y1 + y2) // 2
+                            distance = ((cx - cx_old)**2 + (cy - cy_old)**2)**0.5
+                            
+                            if distance < 100:  # 100 piksel içinde
+                                closest_box = box
+                        
+                        # Düşman hedef bulunduysa güncelle
+                        if closest_box:
+                            target_tracking['target_bbox'] = closest_box
+                            target_tracking['target_lost_frames'] = 0
+                            target_box = closest_box
+                        else:
+                            # Düşman hedef kayıp
+                            target_tracking['target_lost_frames'] += 1
+                            target_box = None
+                            
+                            if target_tracking['target_lost_frames'] > target_tracking['max_lost_frames']:
+                                print("Düşman hedef tamamen kayboldu, kilit açılıyor")
+                                target_tracking['is_locked'] = False
+                                target_tracking['current_target_id'] = None
+                                target_tracking['target_bbox'] = None
+                                target_tracking['first_lock'] = True
                     
-                    cv2.rectangle(ann, (x1-5, y1-5), (x2+5, y2+5), (0, 255, 255), 3)
-                    cv2.drawMarker(ann, (cx, cy), (0, 0, 255), cv2.MARKER_CROSS, 20, 2)
-                    cv2.putText(ann, "DUSMAN TAKIP", (x1, y1-25), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                    # İLK DÜŞMAN HEDEF SEÇİMİ (sadece kilitli değilse ve ilk sefer)
+                    elif not target_tracking['is_locked'] and target_tracking['first_lock']:
+                        if tracked_objects and len(tracked_objects) > 0:
+                            # En yakın düşmanı seç ve HEMEN kilitle
+                            min_distance = float('inf')
+                            closest_enemy = None
+                            
+                            for obj in tracked_objects:
+                                x1, y1, x2, y2 = obj['bbox']
+                                cx = (x1 + x2) // 2
+                                cy = (y1 + y2) // 2
+                                distance = abs(cx - tracker_calc.center_x) + abs(cy - tracker_calc.center_y)
+                                
+                                if distance < min_distance:
+                                    min_distance = distance
+                                    closest_enemy = obj
+                            
+                            if closest_enemy:
+                                target_tracking['current_target_id'] = closest_enemy['id']
+                                target_tracking['target_bbox'] = closest_enemy['bbox']
+                                target_tracking['is_locked'] = True
+                                target_tracking['first_lock'] = False
+                                target_box = closest_enemy['bbox']
+                                print(f"İlk düşman hedef kilitlendi: ID {target_tracking['current_target_id']}")
+                        elif box:
+                            # ByteTrack yoksa basit takip
+                            target_tracking['target_bbox'] = box
+                            target_tracking['is_locked'] = True
+                            target_tracking['first_lock'] = False
+                            target_box = box
+                            print("İlk düşman hedef kilitlendi (basit takip)")
                     
-                    if current_time - last_tracking_time >= TRACKING_INTERVAL:
-                        yaw_steps, pitch_steps = tracker_calc.calculate_movement(box)
+                    # TAKİP KONTROLÜ - SADECE KİLİTLİ DÜŞMAN HEDEF İÇİN
+                    if target_tracking['is_locked'] and 'target_box' in locals() and target_box and (current_time - last_tracking_time >= TRACKING_INTERVAL):
+                        yaw_steps, pitch_steps = tracker_calc.calculate_movement(target_box)
                         
                         if yaw_steps != 0 or pitch_steps != 0:
                             self.arduino_controller.send_direct_movement(yaw_steps, pitch_steps)
                         
                         last_tracking_time = current_time
+                        
+                        # Takip edilen düşman hedefi vurgula
+                        x1, y1, x2, y2 = target_box
+                        cv2.rectangle(ann, (x1-5, y1-5), (x2+5, y2+5), (0, 255, 255), 4)
+                        cv2.putText(ann, "DUSMAN KILITLI", (x1, y1-25), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                        
+                        # Kilit ve hedef sembolü
+                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                        cv2.drawMarker(ann, (cx, cy), (0, 0, 255), cv2.MARKER_TILTED_CROSS, 30, 3)
+                        
+                        # Çift daire hedef göstergesi
+                        cv2.circle(ann, (cx, cy), 25, (0, 0, 255), 2)
+                        cv2.circle(ann, (cx, cy), 30, (0, 255, 255), 2)
+                        
+                        # Hedef bilgisi
+                        error_x = cx - tracker_calc.center_x
+                        error_y = cy - tracker_calc.center_y
+                        cv2.putText(ann, f"Hata: X={error_x}, Y={error_y}", 
+                                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    
+                    # Kilit durumu
+                    if target_tracking['is_locked']:
+                        cv2.putText(ann, "DUSMAN HEDEF KILITLI - DEGISTIRILEMEZ", (10, 60), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                        
+                        if target_tracking['target_lost_frames'] > 0:
+                            cv2.putText(ann, f"Düşman Aranıyor: {target_tracking['target_lost_frames']}/{target_tracking['max_lost_frames']}", 
+                                    (10, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
                 
-                # Takip kapalıysa hedef ID'yi sıfırla
+                # Takip kapalıysa sıfırla
                 if not self.tracking_enabled:
-                    target_tracking['current_target_id'] = None
-                    target_tracking['target_lost_frames'] = 0
+                    target_tracking = {
+                        'current_target_id': None,
+                        'target_bbox': None,
+                        'target_lost_frames': 0,
+                        'max_lost_frames': 10,
+                        'is_locked': False,
+                        'first_lock': True
+                    }
+                
+                # Durum bilgisi - sadece tespit edilen düşman sayısı
+                if tracked_objects:
+                    enemy_count = len(tracked_objects)
+                    cv2.putText(ann, f"Tespit Edilen Düşman: {enemy_count}", 
+                            (10, CANVAS_HEIGHT - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    
+                    # Kilitli hedef varsa ekstra bilgi
+                    if target_tracking['is_locked']:
+                        cv2.putText(ann, "YENİ DÜŞMANLAR GÖRMEZDEN GELİNİYOR", 
+                                (10, CANVAS_HEIGHT - 55), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 165, 0), 2)
                 
                 # Durum bilgisi
                 enemy_count = len([obj for obj in tracked_objects]) if tracked_objects else 0
@@ -524,14 +605,12 @@ class MainWindow:
             # MOD 3 - QR KOD VE ŞEKİL TESPİTİ
             elif mode == "Mod 3":
                 if not self.awaiting_confirmation:
-                    # QR kod tespiti
                     letter = self.qr_detector.detect(frame)
                     if letter:
                         self.detected_letter = letter
                         self.confirmed_letter = letter
                         self.letter_frame.update_letter(letter)
                     
-                    # Renk ve şekil tespiti
                     processed_frame, result = self.object_detector.detect_color_shape(frame)
                     color, shape, box = result
                     if color and shape:
@@ -564,6 +643,11 @@ class MainWindow:
                     cv2.putText(ann, f"Hedef: ID {target_tracking['current_target_id']}", 
                             (CANVAS_WIDTH - 150, 80), 
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                    
+                    # Kilit durumu
+                    if target_tracking['is_locked']:
+                        cv2.putText(ann, "KILITLI", (CANVAS_WIDTH - 150, 105), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
             else:
                 cv2.putText(ann, "TAKIP: KAPALI", (CANVAS_WIDTH - 150, 55), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)

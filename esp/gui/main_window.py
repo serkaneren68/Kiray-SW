@@ -48,38 +48,58 @@ class MainWindow:
         
         # UI oluştur
         self._setup_ui()
+
+        self.restricted_area_enabled = False
+        self.update_timer = None
     
     def _setup_ui(self):
         # Canvas
         self.canvas = tk.Canvas(self.root, bg="black", width=CANVAS_WIDTH, 
-                               height=CANVAS_HEIGHT, highlightthickness=2, 
-                               highlightbackground="gray")
-        self.canvas.place(x=30, y=30)
+                            height=CANVAS_HEIGHT, highlightthickness=2, 
+                            highlightbackground="gray")
+        self.canvas.place(x=20, y=20)
         
         # Frame'ler
         self.mode_frame = ModeFrame(self.root, self.mode, self.on_mode_change,
-                                   self.confirm_mode, self.reject_mode)
-        self.mode_frame.place(30, 580)
+                                self.confirm_mode, self.reject_mode)
+        self.mode_frame.place(20, CANVAS_HEIGHT + 30)  # Canvas'ın altında
         
         self.fe_frame = FriendEnemyFrame(self.root)
         self.letter_frame = LetterFrame(self.root, self.accept_engagement)
-        self.restricted_area_frame = RestrictedAreaFrame(self.root, self.confirm_restricted_angle)
+        self.restricted_area_frame = RestrictedAreaFrame(self.root, self.set_reference_point, 
+                                                        self.confirm_restricted_area)
+        
+        # Sağ panel başlangıç konumu
+        right_panel_x = CANVAS_WIDTH + 40
+        
+        # Kamera ayarları - sağ üst
         self.camera_frame = CameraSelectionFrame(self.root, self.apply_camera_index)
-        self.camera_frame.place(600, 580, 300, 100)
+        self.camera_frame.place(right_panel_x, 20, 300, 180)
         
-        # Kontroller
+        # Kontroller - sağ taraf
         self.manual_controls = ManualControls(self.root, self.manual_command)
-        self.tracking_controls = TrackingControls(self.root, self.toggle_tracking)
-        self.tracking_controls.place(1000, 700, 200, 100)
         
+        # Takip kontrolü
+        self.tracking_controls = TrackingControls(self.root, self.toggle_tracking)
+        self.tracking_controls.place(right_panel_x, 440, 300, 100)
+        
+        # Hız kontrolü - takip kontrolünün altında
+        # (ManualControls içinde zaten var, sadece yerini ayarlıyoruz)
+        
+        # Ana kontroller - alt kısım
         self.main_controls = MainControls(self.root, self.start, self.stop, self.reset_system)
-        self.main_controls.place(30, 700)
-
+        self.main_controls.place(20, CANVAS_HEIGHT + 160)
+        
+        # Klavye kontrolü
         self.root.bind('<KeyPress>', self.on_key_press)
         self.root.bind('<KeyRelease>', self.on_key_release)
         
         # Aktif tuşları takip et
         self.pressed_keys = set()
+        
+        # Update timer
+        self.update_timer = None
+        self.restricted_area_enabled = False
     
     def on_key_press(self, event):
         """Klavye tuşuna basıldığında"""
@@ -87,7 +107,7 @@ class MainWindow:
             return
         
         key = event.keysym
-    
+        
         # Tuş zaten basılıysa tekrar gönderme
         if key in self.pressed_keys:
             return
@@ -96,20 +116,16 @@ class MainWindow:
         
         # Yön tuşları kontrolü
         if hasattr(self, 'manual_controls'):
-            if key in ('Up', 'Down', 'Left', 'Right'):
-                dir_map = {'Up':'up', 'Down':'down', 'Left':'left', 'Right':'right'}
-                direction = dir_map[key]
-
-                # İlk basışta start_movement çağrısı
-                if key not in self.pressed_keys:
-                    self.pressed_keys.add(key)
-                    self.manual_controls.start_movement(direction)
-
-                # Basılı tutma takibi ve tekrarlama başlat
-                self.holding_keys[direction] = True
-                self.root.after(self.hold_interval,
-                                lambda d=direction: self._repeat_hold(d))
+            if key == 'Up':
+                self.manual_controls.start_movement('up')
+            elif key == 'Down':
+                self.manual_controls.start_movement('down')
+            elif key == 'Left':
+                self.manual_controls.start_movement('left')
+            elif key == 'Right':
+                self.manual_controls.start_movement('right')
             elif key == 'space':  # Space tuşu atış için
+                # Yasaklı alan kontrolü arduino_controller içinde yapılıyor
                 self.manual_command('shot')
             elif key == 'Escape':  # ESC tuşu durdurma için
                 self.manual_command('stop')
@@ -141,25 +157,45 @@ class MainWindow:
         self.mode_frame.show_confirm_buttons(idx)
     
     def confirm_mode(self):
+        """Mod onaylama"""
         self.confirmed_mode = self.mode.get()
         self.mode_frame.hide_confirm_buttons()
+        
+        # Tüm mod-spesifik frame'leri gizle
         self.fe_frame.place_forget()
         self.letter_frame.place_forget()
         self.manual_controls.place_forget()
         self.restricted_area_frame.place_forget()
+        
+        # Açı güncellemesini durdur
+        if hasattr(self, 'update_timer') and self.update_timer:
+            self.root.after_cancel(self.update_timer)
+            self.update_timer = None
+
+        # Sağ panel konumu
+        right_panel_x = CANVAS_WIDTH + 40
 
         if self.confirmed_mode == "Mod 2":
-            self.fe_frame.place(1000, 50, 500, 150)
+            # Dost/Düşman çerçevesi - manuel kontrollerin yerine
+            self.fe_frame.place(right_panel_x, 210, 300, 120)
+            
         elif self.confirmed_mode == "Mod 3":
-            self.letter_frame.place(1000, 300, 450, 180)
-            self.restricted_area_frame.place(1000, 500, 300, 150)
+            # Letter frame - üstte
+            self.letter_frame.place(right_panel_x, 210, 300, 160)
+            # Restricted area yok (şimdilik)
             self.awaiting_confirmation = False
             self.detected_letter = None
             self.confirmed_letter = None
             self.detected_shape = None
             self.confirmed_shape = None
+            
         elif self.confirmed_mode == "Manuel":
-            self.manual_controls.place(1000, 200, 300, 300)
+            # Manuel kontroller
+            self.manual_controls.place(right_panel_x, 210, 300, 220)
+            # Yasaklı alan kontrolü - altta
+            self.restricted_area_frame.place(right_panel_x, 550, 300, 280)
+            # Manuel modda açı güncellemesini başlat
+            self.start_angle_update()
     
     def reject_mode(self):
         self.mode.set(self.confirmed_mode)
@@ -176,6 +212,7 @@ class MainWindow:
     
     # manual_command metodunu güncelle
     def manual_command(self, command):
+        print(f"[MAIN] Manuel komut alındı: {command}")  # Debug için ekleyin
         self.arduino_controller.send_command(command)
         
         # Pozisyon güncellemesi al
@@ -622,9 +659,102 @@ class MainWindow:
                 else:
                     ann = frame.copy()
             
-            # MANUEL MOD
             elif mode == "Manuel":
-                pass
+                # Manuel modda görüntüyü göster
+                if self.restricted_area_enabled and hasattr(self, 'arduino_controller'):
+                    # Yasaklı alan göstergesi ekle
+                    relative_yaw = self.arduino_controller.get_relative_yaw()
+                    shot_allowed = self.arduino_controller.is_shot_allowed()
+                    
+                    # Üst bilgi çubuğu
+                    cv2.rectangle(ann, (0, 0), (CANVAS_WIDTH, 40), (0, 0, 0), -1)
+                    
+                    # Açı bilgisi
+                    cv2.putText(ann, f"Aci: {relative_yaw:.1f} derece", 
+                            (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                    
+                    # Yasaklı alan bilgisi
+                    min_angle = self.arduino_controller.restricted_yaw_min
+                    max_angle = self.arduino_controller.restricted_yaw_max
+                    cv2.putText(ann, f"Yasakli: {min_angle} - {max_angle}", 
+                            (CANVAS_WIDTH//2 - 100, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 165, 0), 2)
+                    
+                    # Atış durumu
+                    if shot_allowed:
+                        cv2.putText(ann, "ATIS: SERBEST", 
+                                (CANVAS_WIDTH - 200, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    else:
+                        cv2.putText(ann, "ATIS: YASAK!", 
+                                (CANVAS_WIDTH - 200, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                        # Kırmızı çerçeve
+                        cv2.rectangle(ann, (2, 2), (CANVAS_WIDTH-3, CANVAS_HEIGHT-3), (0, 0, 255), 3)
+                        
+                        # Ortada büyük uyarı
+                        warning_text = "YASAKLI BOLGEDE"
+                        font_scale = 1.5
+                        thickness = 3
+                        (text_width, text_height), _ = cv2.getTextSize(warning_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+                        text_x = (CANVAS_WIDTH - text_width) // 2
+                        text_y = CANVAS_HEIGHT // 2
+                        
+                        # Arka plan kutusu
+                        cv2.rectangle(ann, (text_x - 10, text_y - text_height - 10), 
+                                    (text_x + text_width + 10, text_y + 10), (0, 0, 0), -1)
+                        cv2.rectangle(ann, (text_x - 10, text_y - text_height - 10), 
+                                    (text_x + text_width + 10, text_y + 10), (0, 0, 255), 2)
+                        
+                        # Uyarı metni
+                        cv2.putText(ann, warning_text, (text_x, text_y), 
+                                cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), thickness)
+                
+                # Açı göstergesi çizimi (isteğe bağlı)
+                if hasattr(self, 'arduino_controller'):
+                    # Açı göstergesi yarım daire
+                    center_x = CANVAS_WIDTH // 2
+                    gauge_y = CANVAS_HEIGHT - 60
+                    gauge_radius = 150
+                    
+                    # Yarım daire arka plan
+                    cv2.ellipse(ann, (center_x, gauge_y), (gauge_radius, gauge_radius), 
+                            0, 180, 360, (100, 100, 100), 2)
+                    
+                    # Açı işaretleri
+                    for angle in [-90, -45, 0, 45, 90]:
+                        rad = np.radians(180 - angle)  # OpenCV için açı dönüşümü
+                        x = int(center_x + gauge_radius * np.cos(rad))
+                        y = int(gauge_y - gauge_radius * np.sin(rad))
+                        cv2.circle(ann, (x, y), 3, (200, 200, 200), -1)
+                        cv2.putText(ann, str(angle), (x-15, y-10), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (200, 200, 200), 1)
+                    
+                    # Mevcut açı göstergesi
+                    if hasattr(self, 'arduino_controller'):
+                        current_angle = self.arduino_controller.get_relative_yaw()
+                        if -90 <= current_angle <= 90:
+                            rad = np.radians(180 - current_angle)
+                            x = int(center_x + gauge_radius * np.cos(rad))
+                            y = int(gauge_y - gauge_radius * np.sin(rad))
+                            cv2.line(ann, (center_x, gauge_y), (x, y), (0, 255, 255), 3)
+                            cv2.circle(ann, (x, y), 8, (0, 255, 255), -1)
+                    
+                    # Yasaklı alan işaretleme
+                    if self.restricted_area_enabled:
+                        min_angle = max(-90, self.arduino_controller.restricted_yaw_min)
+                        max_angle = min(90, self.arduino_controller.restricted_yaw_max)
+                        
+                        # Yasaklı alan yayı
+                        if min_angle < max_angle:
+                            cv2.ellipse(ann, (center_x, gauge_y), (gauge_radius-10, gauge_radius-10),
+                                    0, 180-max_angle, 180-min_angle, (0, 0, 255), 10)
+                                        # Yasaklı alan sınır çizgileri
+                            for angle in [min_angle, max_angle]:
+                                if -90 <= angle <= 90:
+                                    rad = np.radians(180 - angle)
+                                    x1 = int(center_x + (gauge_radius - 20) * np.cos(rad))
+                                    y1 = int(gauge_y - (gauge_radius - 20) * np.sin(rad))
+                                    x2 = int(center_x + (gauge_radius + 20) * np.cos(rad))
+                                    y2 = int(gauge_y - (gauge_radius + 20) * np.sin(rad))
+                                    cv2.line(ann, (x1, y1), (x2, y2), (0, 0, 255), 2)
             
             # Crosshair ekle
             ann = add_crosshair(ann)
@@ -668,3 +798,54 @@ class MainWindow:
                 print(f"Görüntü hatası: {e}")
 
         self.camera_manager.release()
+
+        # Yeni fonksiyonlar ekleyin:
+    def set_reference_point(self):
+        """Mevcut pozisyonu referans noktası olarak ayarla"""
+        if self.arduino_controller.set_reference_point():
+            messagebox.showinfo("Başarılı", "Referans noktası (0°) ayarlandı!")
+            # Periyodik güncelleme başlat
+            self.start_angle_update()
+
+    def confirm_restricted_area(self):
+        """Yasaklı alan ayarlarını onayla"""
+        min_angle, max_angle = self.restricted_area_frame.get_angles()
+        
+        if min_angle is None or max_angle is None:
+            messagebox.showerror("Hata", "Geçerli açı değerleri girin!")
+            return
+        
+        if min_angle >= max_angle:
+            messagebox.showerror("Hata", "Min açı, max açıdan küçük olmalı!")
+            return
+        
+        self.arduino_controller.set_restricted_area(min_angle, max_angle)
+        self.restricted_area_enabled = True
+        self.restricted_area_frame.update_status(True, min_angle, max_angle)
+        messagebox.showinfo("Başarılı", f"Yasaklı alan ayarlandı!\n{min_angle}° - {max_angle}° arası atış yasak")
+
+    def start_angle_update(self):
+        """Açı göstergesini periyodik olarak güncelle"""
+        if self.confirmed_mode == "Manuel":
+            self.update_angle_display()
+    
+    def update_angle_display(self):
+        """Açı ve atış durumu göstergesini güncelle"""
+        if self.confirmed_mode == "Manuel" and hasattr(self, 'restricted_area_frame'):
+            # Mevcut açıyı al
+            relative_yaw = self.arduino_controller.get_relative_yaw()
+            self.restricted_area_frame.update_angle(relative_yaw)
+            
+            # Atış durumunu kontrol et
+            shot_allowed = self.arduino_controller.is_shot_allowed()
+            min_angle = self.arduino_controller.restricted_yaw_min
+            max_angle = self.arduino_controller.restricted_yaw_max
+            self.restricted_area_frame.update_shot_status(shot_allowed, min_angle, max_angle)
+            
+            # Manuel kontrol pozisyon güncellemesi
+            if hasattr(self, 'manual_controls'):
+                yaw, pitch = self.arduino_controller.get_position()
+                self.manual_controls.update_position(relative_yaw, pitch)
+            
+            # 100ms sonra tekrar çağır
+            self.update_timer = self.root.after(100, self.update_angle_display)

@@ -223,8 +223,9 @@ class ManualControls:
     
     def send_step_command(self, direction):
         # Adım büyüklüğü ile birlikte komut gönder
-        step_size = self.step_size.get()    
-        command = direction
+        step_size = self.step_size.get()
+        command = f"{direction}:{step_size}"  # Örn: "right:50"
+        print(f"[KONTROL] Gönderilen komut: {command}")  # Debug için ekleyin
         self.command_callback(command)
     
     def stop_all(self):
@@ -242,14 +243,56 @@ class ManualControls:
         self.yaw_pos_label.config(text="0°")
         self.pitch_pos_label.config(text="0°")
     
+    # ManualControls sınıfında update_position metodunu güncelleyin:
     def update_position(self, yaw, pitch):
         """Pozisyon güncellemesi için dışarıdan çağrılabilir"""
-        self.yaw_pos_label.config(text=f"{yaw}°")
-        self.pitch_pos_label.config(text=f"{pitch}°")
+        # Yaw değeri artık referans noktasına göre gösteriliyor
+        self.yaw_pos_label.config(text=f"{yaw:.1f}°")
+        self.pitch_pos_label.config(text=f"{pitch:.1f}°")
     
     def place(self, x, y, width, height):
+        # Frame'i yerleştir
         self.frame.place(x=x, y=y, width=width, height=height)
-    
+        
+        # Kompakt yerleşim için iç elemanları yeniden düzenle
+        # Hareket kontrolleri frame'i
+        move_frame = self.frame.winfo_children()[0]  # İlk child hareket frame'i
+        move_frame.place(x=5, y=5, width=width-10, height=120)
+        
+        # Hız kontrolü frame'i
+        speed_frame = None
+        for child in self.frame.winfo_children():
+            if isinstance(child, tk.LabelFrame) and "Hız Kontrolü" in child.cget("text"):
+                speed_frame = child
+                break
+        
+        if speed_frame:
+            speed_frame.place(x=5, y=130, width=width-10, height=60)
+        
+        # Pozisyon göstergesi frame'i
+        pos_frame = None
+        for child in self.frame.winfo_children():
+            if isinstance(child, tk.LabelFrame) and "Mevcut Pozisyon" in child.cget("text"):
+                pos_frame = child
+                break
+        
+        if pos_frame:
+            pos_frame.place(x=5, y=195, width=width-10, height=80)
+        
+        # Hareket modu frame'i (varsa)
+        mode_frame = None
+        for child in self.frame.winfo_children():
+            if isinstance(child, tk.LabelFrame) and "Hareket Modu" in child.cget("text"):
+                mode_frame = child
+                break
+        
+        if mode_frame:
+            # Eğer height yeterli değilse bu frame'i gizle
+            if height > 350:
+                mode_frame.place(x=5, y=280, width=width-10, height=70)
+            else:
+                mode_frame.place_forget()
+
     def place_forget(self):
         self.continuous_movement = False  # Gizlerken hareketi durdur
         self.frame.place_forget()

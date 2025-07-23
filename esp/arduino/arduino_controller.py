@@ -8,20 +8,59 @@ class ArduinoController:
     def __init__(self, port='COM3', baudrate=9600):
         self.arduino = None
         self.last_command_time = 0
-        self.command_delay = 0.03  # 30ms delay
-        self.current_yaw = 0
-        self.current_pitch = 0
+        self.command_delay = 0.03
+        self.current_yaw = 0.0  # Float olarak başlat
+        self.current_pitch = 0.0
         self.current_speed = 50
+        
+        # Yasaklı alan değişkenleri
+        self.reference_yaw = 0.0
+        self.restricted_area_enabled = False
+        self.restricted_yaw_min = -15
+        self.restricted_yaw_max = 15
         
         try:
             self.arduino = serial.Serial(port, baudrate, timeout=1)
             time.sleep(2)
             print("ESP8266'ya bağlandı")
-            # Başlangıç ayarlarını gönder
             self.send_command("speed:50")
         except Exception as e:
             print(f"[HATA] ESP8266 bağlantısı kurulamadı: {e}")
             self.arduino = None
+    
+    def set_reference_point(self):
+        """Mevcut pozisyonu referans (0) noktası olarak ayarla"""
+        self.reference_yaw = self.current_yaw
+        print(f"Referans noktası ayarlandı: {self.reference_yaw}°")
+        print(f"Mevcut mutlak pozisyon: {self.current_yaw}°")
+        return True
+    
+    def get_relative_yaw(self):
+        """Referans noktasına göre yaw açısını döndür"""
+        relative = self.current_yaw - self.reference_yaw
+        print(f"[DEBUG] Mutlak: {self.current_yaw:.1f}°, Referans: {self.reference_yaw:.1f}°, Göreceli: {relative:.1f}°")
+        return relative
+    
+    def set_restricted_area(self, yaw_min, yaw_max):
+        """Yasaklı alan sınırlarını ayarla"""
+        self.restricted_yaw_min = yaw_min
+        self.restricted_yaw_max = yaw_max
+        self.restricted_area_enabled = True
+        print(f"Yasaklı alan ayarlandı: {yaw_min}° ile {yaw_max}° arası")
+    
+    def is_shot_allowed(self):
+        """Mevcut pozisyonda atış izni var mı kontrol et"""
+        if not self.restricted_area_enabled:
+            return True
+        
+        relative_yaw = self.get_relative_yaw()
+        
+        # Yasaklı alanda mı kontrolü
+        if self.restricted_yaw_min <= relative_yaw <= self.restricted_yaw_max:
+            print(f"ATIŞ ENGELLENDİ! Mevcut açı: {relative_yaw:.1f}° (Yasaklı: {self.restricted_yaw_min}° - {self.restricted_yaw_max}°)")
+            return False
+        
+        return True
     
     def send_command(self, command):
         current_time = time.time()
@@ -34,110 +73,89 @@ class ArduinoController:
             return
         
         try:
-            # Basit komutlar (eski sistem)
+            # ATIŞ KOMUTU KONTROLÜ
+            if command == "shot":
+                if not self.is_shot_allowed():
+                    return  # Atış engellendi
+                    
+            # Basit komutlar (SÜREKLİ MOD İÇİN)
             if command in ARDUINO_COMMANDS:
-                # Yeni satır karakteri ekle
                 cmd_with_newline = ARDUINO_COMMANDS[command] + b'\n'
                 self.arduino.write(cmd_with_newline)
                 print(f"{command.capitalize()} komutu gönderildi")
+                
+                # SÜREKLİ MOD İÇİN POZİSYON GÜNCELLEMESİ
+                # Arduino kodunda moveMotors(80, 0) gibi sabit değerler var
+                if command == "right":
+                    self.current_yaw += 80 / STEPS_PER_DEGREE_YAW  # 80 adım
+                    print(f"Sağa hareket - Yeni yaw: {self.current_yaw:.2f}°")
+                elif command == "left":
+                    self.current_yaw -= 80 / STEPS_PER_DEGREE_YAW
+                    print(f"Sola hareket - Yeni yaw: {self.current_yaw:.2f}°")
+                elif command == "up":
+                    self.current_pitch += 80 / STEPS_PER_DEGREE_PITCH
+                    print(f"Yukarı hareket - Yeni pitch: {self.current_pitch:.2f}°")
+                elif command == "down":
+                    self.current_pitch -= 80 / STEPS_PER_DEGREE_PITCH
+                    print(f"Aşağı hareket - Yeni pitch: {self.current_pitch:.2f}°")
             
-            # Gelişmiş komutlar
+            # Gelişmiş komutlar (ADIM MODU İÇİN)
             elif ":" in command:
                 cmd_type, value = command.split(":", 1)
                 
                 if cmd_type == "speed":
-                    # Hız komutu: V<hız_değeri>
                     self.arduino.write(f"V{value}\n".encode())
                     self.current_speed = int(value)
                     print(f"Hız ayarlandı: {value}%")
                 
                 elif cmd_type in ["up", "down", "left", "right"]:
-                    # Adım komutu: <yön>:<adım>
                     step_value = int(value)
+                    
+                    # ADIM MODU KOMUTLARINI ARDUINO'YA GÖNDER
                     if cmd_type == "up":
-                        self.arduino.write(f"U{step_value}\n".encode())
+                        # Arduino'ya M komutu olarak gönder
+                        self.send_direct_movement(0, step_value)
                     elif cmd_type == "down":
-                        self.arduino.write(f"D{step_value}\n".encode())
+                        self.send_direct_movement(0, -step_value)
                     elif cmd_type == "left":
-                        self.arduino.write(f"L{step_value}\n".encode())
+                        self.send_direct_movement(-step_value, 0)
                     elif cmd_type == "right":
-                        self.arduino.write(f"R{step_value}\n".encode())
-                    print(f"{cmd_type} {step_value} adım")
+                        self.send_direct_movement(step_value, 0)
             
             elif command == "home":
-                # Home komutu
                 self.arduino.write(b"H\n")
-                self.current_yaw = 0
-                self.current_pitch = 0
+                self.current_yaw = 0.0
+                self.current_pitch = 0.0
                 print("Home pozisyonuna dönülüyor")
             
             elif command == "stop":
-                # Stop komutu
                 self.arduino.write(b"X\n")
                 print("Motorlar durduruldu")
-            
-            # ESP'den gelen cevapları oku
-            if self.arduino.in_waiting > 0:
-                response = self.arduino.readline().decode('utf-8').strip()
-                self.process_response(response)
                 
         except Exception as e:
             print(f"Komut gönderme hatası: {e}")
     
     def send_direct_movement(self, yaw_steps, pitch_steps):
-        """
-        ESP8266'ya eş zamanlı motor hareketi için komut gönder
-        
-        Args:
-            yaw_steps: Yatay hareket adım sayısı (+ sağ, - sol)
-            pitch_steps: Dikey hareket adım sayısı (+ yukarı, - aşağı)
-        """
+        """ESP8266'ya eş zamanlı motor hareketi için komut gönder"""
         if not self.arduino:
             return
         
         try:
-            # ESP için hareket komutu - Format: M<yaw_steps>,<pitch_steps>
-            # ESP kodu zaten eş zamanlı hareket yapıyor
             command = f"M{yaw_steps},{pitch_steps}\n"
             self.arduino.write(command.encode())
             
-            # Pozisyonu güncelle (tahmin)
-            self.current_yaw += yaw_steps / STEPS_PER_DEGREE_YAW
-            self.current_pitch += pitch_steps / STEPS_PER_DEGREE_PITCH
+            # POZISYON GÜNCELLEMESİ ÖNEMLİ!
+            yaw_change = yaw_steps / STEPS_PER_DEGREE_YAW
+            pitch_change = pitch_steps / STEPS_PER_DEGREE_PITCH
             
-            print(f"ESP'ye gönderildi - Yaw: {yaw_steps}, Pitch: {pitch_steps} adım (eş zamanlı)")
+            self.current_yaw += yaw_change
+            self.current_pitch += pitch_change
+            
+            print(f"Direkt hareket: Yaw={yaw_steps} adım ({yaw_change:.2f}°), Pitch={pitch_steps} adım ({pitch_change:.2f}°)")
+            print(f"Yeni pozisyon - Yaw: {self.current_yaw:.2f}°, Pitch: {self.current_pitch:.2f}°")
             
         except Exception as e:
-            print(f"ESP hareket gönderme hatası: {e}")
-    
-    def center_on_target(self, angle_x, angle_y):
-        """
-        Hedefe doğrudan açı değerleriyle git (ESP için)
-        
-        Args:
-            angle_x: Yatay açı (derece)
-            angle_y: Dikey açı (derece)
-        """
-        yaw_steps = int(angle_x * STEPS_PER_DEGREE_YAW)
-        pitch_steps = int(angle_y * STEPS_PER_DEGREE_PITCH)
-        
-        # ESP'ye eş zamanlı hareket komutu gönder
-        self.send_direct_movement(yaw_steps, pitch_steps)
-    
-    def process_response(self, response):
-        """ESP'den gelen cevapları işle"""
-        if response:
-            print(f"ESP: {response}")
-            
-        # Pozisyon güncellemesi varsa işle
-        if response.startswith("POS:"):
-            try:
-                pos_data = response[4:].split(",")
-                self.current_yaw = float(pos_data[0])
-                self.current_pitch = float(pos_data[1])
-                print(f"Pozisyon: Yaw={self.current_yaw}, Pitch={self.current_pitch}")
-            except:
-                pass
+            print(f"Direkt hareket gönderme hatası: {e}")
     
     def get_position(self):
         """Mevcut pozisyonu döndür"""
@@ -146,7 +164,6 @@ class ArduinoController:
     def close(self):
         if self.arduino:
             try:
-                # Motorları durdur
                 self.arduino.write(b'X\n')
                 time.sleep(0.1)
                 self.arduino.close()

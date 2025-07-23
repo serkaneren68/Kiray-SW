@@ -101,7 +101,7 @@ void processCommand(String cmd) {
   }
   else if (cmd == "S") {
     myServo.write(180);      // Saat yönünde dön
-    delay(2215);             // ~1 saniye döndür (ayar yapman gerekebilir)
+    delay(2000);             // ~1 saniye döndür (ayar yapman gerekebilir)
     myServo.write(90);       // Durdur
   }
 }

@@ -252,7 +252,7 @@ class ManualControls:
     
     def place(self, x, y, width, height):
         # Frame'i yerleştir
-        self.frame.place(x=x, y=y, width=width, height=height)
+        self.frame.place(x=1000, y=y, width=width, height=height)
         
         # Kompakt yerleşim için iç elemanları yeniden düzenle
         # Hareket kontrolleri frame'i

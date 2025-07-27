@@ -51,6 +51,14 @@ class MainWindow:
 
         self.restricted_area_enabled = False
         self.update_timer = None
+
+        # Atış modu değişkenleri
+        self.shot_mode = "manuel"  # "manuel" veya "otonom"
+        self.last_auto_shot_time = 0
+        self.auto_shot_cooldown = 2.0  # 2 saniye bekleme
+
+        self.manual_shot_fired = False
+        self.manual_shot_time = 0
     
     def _setup_ui(self):
         # Canvas
@@ -113,7 +121,30 @@ class MainWindow:
             return
         
         self.pressed_keys.add(key)
-        
+
+
+        if key == 'space':
+            # Manuel modda
+            if self.confirmed_mode == "Manuel":
+                self.manual_command('shot')
+            # Mod 1 ve Mod 2'de manuel atış modundaysa
+            elif self.confirmed_mode in ["Mod 1", "Mod 2"]:
+                if hasattr(self, 'shot_mode') and self.shot_mode == "manuel":
+                    try:
+                        if self.arduino_controller and self.arduino_controller.arduino:
+                            self.arduino_controller.arduino.write(b'S\n')
+                            print("[MANUEL ATIŞ] S komutu gönderildi")
+                            
+                            # Görsel geri bildirim için flag
+                            self.manual_shot_fired = True
+                            self.manual_shot_time = time.time()
+                        else:
+                            print("[HATA] Arduino bağlantısı yok!")
+                    except Exception as e:
+                        print(f"[HATA] Manuel atış hatası: {e}")
+                else:
+                    print(f"[UYARI] Otonom modda, space tuşu devre dışı!")
+
         # Yön tuşları kontrolü
         if hasattr(self, 'manual_controls'):
             if key == 'Up':
@@ -124,9 +155,14 @@ class MainWindow:
                 self.manual_controls.start_movement('left')
             elif key == 'Right':
                 self.manual_controls.start_movement('right')
-            elif key == 'space':  # Space tuşu atış için
-                # Yasaklı alan kontrolü arduino_controller içinde yapılıyor
-                self.manual_command('shot')
+            elif key == 'Space':  # Space tuşu atış için
+                # Sadece manuel modda veya manuel atış seçiliyse
+                if self.confirmed_mode == "Manuel":
+                    self.manual_command('shot')
+                elif self.confirmed_mode in ["Mod 1", "Mod 2"] and self.shot_mode == "manuel":
+                    # S komutu gönder
+                    self.arduino_controller.arduino.write(b'S\n')
+                    print("Manuel atış komutu gönderildi: S")
             elif key == 'Escape':  # ESC tuşu durdurma için
                 self.manual_command('stop')
             elif key == 'Home':  # Home tuşu
@@ -152,6 +188,44 @@ class MainWindow:
                 self.holding_keys[direction] = False
                 self.manual_controls.stop_movement(direction)
 
+    def create_shot_mode_controls(self, x_position):
+        """Atış modu seçim kontrolleri oluştur"""
+        # Atış modu frame
+        if hasattr(self, 'shot_mode_frame'):
+            self.shot_mode_frame.destroy()
+        
+        self.shot_mode_frame = tk.LabelFrame(self.root, text="Atış Modu", 
+                                            bg="black", fg="red", bd=2)
+        self.shot_mode_frame.place(x=x_position, y=350, width=300, height=120)
+        
+        # Radio butonlar
+        self.shot_var = tk.StringVar(value=self.shot_mode)
+        
+        manual_radio = tk.Radiobutton(self.shot_mode_frame, 
+                                    text="Manuel Atış (Space)", 
+                                    variable=self.shot_var, 
+                                    value="manuel",
+                                    bg="black", fg="white",
+                                    selectcolor="black",
+                                    font=("Arial", 12),
+                                    command=self.change_shot_mode)
+        manual_radio.pack(pady=10)
+        
+        auto_radio = tk.Radiobutton(self.shot_mode_frame, 
+                                text="Otonom Atış", 
+                                variable=self.shot_var, 
+                                value="otonom",
+                                bg="black", fg="white",
+                                selectcolor="black",
+                                font=("Arial", 12),
+                                command=self.change_shot_mode)
+        auto_radio.pack(pady=10)
+
+    def change_shot_mode(self):
+        """Atış modunu değiştir"""
+        self.shot_mode = self.shot_var.get()
+        print(f"Atış modu: {self.shot_mode}")
+
     def on_mode_change(self, *args):
         idx = ["Manuel", "Mod 1", "Mod 2", "Mod 3"].index(self.mode.get())
         self.mode_frame.show_confirm_buttons(idx)
@@ -175,14 +249,19 @@ class MainWindow:
         # Sağ panel konumu
         right_panel_x = CANVAS_WIDTH + 40
 
-        if self.confirmed_mode == "Mod 2":
-            # Dost/Düşman çerçevesi - manuel kontrollerin yerine
+        if self.confirmed_mode == "Mod 1":
+            # Mod 1 için atış modu seçimi ekle
+            self.create_shot_mode_controls(right_panel_x)
+            
+        elif self.confirmed_mode == "Mod 2":
+            # Dost/Düşman çerçevesi
             self.fe_frame.place(right_panel_x, 210, 300, 120)
+            # Mod 2 için de atış modu seçimi
+            self.create_shot_mode_controls(right_panel_x)
             
         elif self.confirmed_mode == "Mod 3":
-            # Letter frame - üstte
+            # Letter frame
             self.letter_frame.place(right_panel_x, 210, 300, 160)
-            # Restricted area yok (şimdilik)
             self.awaiting_confirmation = False
             self.detected_letter = None
             self.confirmed_letter = None
@@ -192,7 +271,7 @@ class MainWindow:
         elif self.confirmed_mode == "Manuel":
             # Manuel kontroller
             self.manual_controls.place(right_panel_x, 210, 300, 220)
-            # Yasaklı alan kontrolü - altta
+            # Yasaklı alan kontrolü
             self.restricted_area_frame.place(right_panel_x, 550, 300, 280)
             # Manuel modda açı güncellemesini başlat
             self.start_angle_update()
@@ -229,6 +308,7 @@ class MainWindow:
         
         if self.tracking_enabled:
             print("Otomatik takip ve ByteTrack başlatıldı")
+            # Tracker'ı sıfırla - video_loop içinde yapılacak
         else:
             print("Otomatik takip ve ByteTrack durduruldu")
     
@@ -342,6 +422,7 @@ class MainWindow:
         
         image_id = None
         last_tracking_time = time.time()
+        last_tracking_state = False
         
         # Her iki mod için ortak hedef takip değişkenleri
         target_tracking = {
@@ -363,6 +444,13 @@ class MainWindow:
             ann = frame.copy()
             current_time = time.time()
 
+            if self.tracking_enabled != last_tracking_state:
+                if self.tracking_enabled:
+                    tracker_calc.reset()
+                    print("Takip başladı - Tracker sıfırlandı")
+                last_tracking_state = self.tracking_enabled
+
+            # MOD 1 - TÜM BALONLARI TAKİP ET
             # MOD 1 - TÜM BALONLARI TAKİP ET
             if mode == "Mod 1" and self.object_detector.model:
                 ann, box, tracked_objects = self.object_detector.detect_objects(frame, mode)
@@ -371,12 +459,12 @@ class MainWindow:
                 if self.tracking_enabled:
                     # EĞER KİLİTLİ BİR HEDEF VARSA
                     if target_tracking['is_locked'] and target_tracking['target_bbox'] is not None:
-                        # Mevcut kilitli hedefin pozisyonunu güncelle
+                        # Mevcut kilitli hedefin pozisyonunu al
                         x1_old, y1_old, x2_old, y2_old = target_tracking['target_bbox']
                         cx_old = (x1_old + x2_old) // 2
                         cy_old = (y1_old + y2_old) // 2
                         
-                        # En yakın nesneyi bul (ID yerine pozisyon bazlı)
+                        # En yakın nesneyi bul
                         min_distance = float('inf')
                         closest_box = None
                         
@@ -386,21 +474,20 @@ class MainWindow:
                                 cx = (x1 + x2) // 2
                                 cy = (y1 + y2) // 2
                                 
-                                # Eski pozisyona olan mesafe
                                 distance = ((cx - cx_old)**2 + (cy - cy_old)**2)**0.5
                                 
-                                if distance < min_distance and distance < 100:  # 100 piksel içinde
+                                if distance < min_distance and distance < 100:
                                     min_distance = distance
                                     closest_box = obj['bbox']
                                     target_tracking['current_target_id'] = obj['id']
                         
-                        elif box:  # ByteTrack çalışmıyorsa
+                        elif box:
                             x1, y1, x2, y2 = box
                             cx = (x1 + x2) // 2
                             cy = (y1 + y2) // 2
                             distance = ((cx - cx_old)**2 + (cy - cy_old)**2)**0.5
                             
-                            if distance < 100:  # 100 piksel içinde
+                            if distance < 100:
                                 closest_box = box
                         
                         # Hedef bulunduysa güncelle
@@ -409,7 +496,6 @@ class MainWindow:
                             target_tracking['target_lost_frames'] = 0
                             target_box = closest_box
                         else:
-                            # Hedef kayıp
                             target_tracking['target_lost_frames'] += 1
                             target_box = None
                             
@@ -420,59 +506,68 @@ class MainWindow:
                                 target_tracking['target_bbox'] = None
                                 target_tracking['first_lock'] = True
                     
-                    # İLK HEDEF SEÇİMİ (sadece kilitli değilse ve ilk sefer)
+                    # İLK HEDEF SEÇİMİ
                     elif not target_tracking['is_locked'] and target_tracking['first_lock']:
-                        if tracked_objects and len(tracked_objects) > 0:
-                            # İlk nesneyi seç ve HEMEN kilitle
+                        if box:
+                            target_tracking['target_bbox'] = box
+                            target_tracking['is_locked'] = True
+                            target_tracking['first_lock'] = False
+                            target_box = box
+                            print(f"[MOD1] İlk hedef kilitlendi")
+                        elif tracked_objects and len(tracked_objects) > 0:
                             first_obj = tracked_objects[0]
                             target_tracking['current_target_id'] = first_obj['id']
                             target_tracking['target_bbox'] = first_obj['bbox']
                             target_tracking['is_locked'] = True
                             target_tracking['first_lock'] = False
                             target_box = first_obj['bbox']
-                            print(f"İlk hedef kilitlendi: ID {target_tracking['current_target_id']}")
-                        elif box:
-                            # ByteTrack yoksa basit takip
-                            target_tracking['target_bbox'] = box
-                            target_tracking['is_locked'] = True
-                            target_tracking['first_lock'] = False
-                            target_box = box
-                            print("İlk hedef kilitlendi (basit takip)")
+                            print(f"[MOD1] İlk hedef kilitlendi: ID {first_obj['id']}")
                     
-                    # TAKİP KONTROLÜ - SADECE KİLİTLİ HEDEF İÇİN
-                    if target_tracking['is_locked'] and 'target_box' in locals() and target_box and (current_time - last_tracking_time >= TRACKING_INTERVAL):
-                        yaw_steps, pitch_steps = tracker_calc.calculate_movement(target_box)
-                        
-                        if yaw_steps != 0 or pitch_steps != 0:
-                            self.arduino_controller.send_direct_movement(yaw_steps, pitch_steps)
-                        
-                        last_tracking_time = current_time
-                        
-                        # Takip edilen hedefi vurgula
+                    # TAKİP KONTROLÜ - SADECE BU KISIM DEĞİŞTİ
+                    if target_tracking['is_locked'] and target_tracking['target_bbox'] is not None:
+                        target_box = target_tracking['target_bbox']
                         x1, y1, x2, y2 = target_box
+                        
+                        # SADECE TRACKING_INTERVAL'de hareket et
+                        if (current_time - last_tracking_time >= TRACKING_INTERVAL):
+                            yaw_steps, pitch_steps = tracker_calc.calculate_movement(target_box)
+                            
+                            # Hareket et
+                            if yaw_steps != 0 or pitch_steps != 0:
+                                self.arduino_controller.send_direct_movement(yaw_steps, pitch_steps)
+                            
+                            # OTONOM ATIŞ KONTROLÜ - AYRI OLARAK
+                            if hasattr(self, 'shot_mode') and self.shot_mode == "otonom":
+                                cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                                error_x = abs(cx - tracker_calc.center_x)
+                                error_y = abs(cy - tracker_calc.center_y)
+                                total_error = (error_x**2 + error_y**2)**0.5
+                                
+                                if (total_error < TRACKING_DEADZONE and 
+                                    current_time - self.last_auto_shot_time > self.auto_shot_cooldown):
+                                    try:
+                                        self.arduino_controller.arduino.write(b'S\n')
+                                        print(f"[OTONOM ATIŞ] Hedef merkezde! Hata: {total_error:.1f}px")
+                                        self.last_auto_shot_time = current_time
+                                    except:
+                                        print("[HATA] Otonom atış gönderilemedi!")
+                            
+                            last_tracking_time = current_time
+                        
+                        # Takip görselleştirmesi
                         cv2.rectangle(ann, (x1-5, y1-5), (x2+5, y2+5), (0, 255, 255), 4)
                         cv2.putText(ann, "KILITLI", (x1, y1-25), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
                         
-                        # Kilit sembolü
-                        cv2.drawMarker(ann, ((x1+x2)//2, (y1+y2)//2), (0, 0, 255), 
+                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                        cv2.drawMarker(ann, (cx, cy), (0, 0, 255), 
                                     cv2.MARKER_TILTED_CROSS, 30, 3)
                         
-                        # Hedef bilgisi
-                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                        # Hata bilgisi
                         error_x = cx - tracker_calc.center_x
                         error_y = cy - tracker_calc.center_y
                         cv2.putText(ann, f"Hata: X={error_x}, Y={error_y}", 
                                 (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                    
-                    # Kilit durumu
-                    if target_tracking['is_locked']:
-                        cv2.putText(ann, "HEDEF KILITLI - DEGISTIRILEMEZ", (10, 60), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-                        
-                        if target_tracking['target_lost_frames'] > 0:
-                            cv2.putText(ann, f"Hedef Aranıyor: {target_tracking['target_lost_frames']}/{target_tracking['max_lost_frames']}", 
-                                    (10, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
                 
                 # Takip kapalıysa sıfırla
                 if not self.tracking_enabled:
@@ -574,14 +669,39 @@ class MainWindow:
                             target_box = box
                             print("İlk düşman hedef kilitlendi (basit takip)")
                     
-                    # TAKİP KONTROLÜ - SADECE KİLİTLİ DÜŞMAN HEDEF İÇİN
-                    if target_tracking['is_locked'] and 'target_box' in locals() and target_box and (current_time - last_tracking_time >= TRACKING_INTERVAL):
-                        yaw_steps, pitch_steps = tracker_calc.calculate_movement(target_box)
+                    # TAKİP KONTROLÜ - SADECE KİLİTLİ HEDEF İÇİN
+                    if target_tracking['is_locked'] and target_tracking['target_bbox'] is not None:
+                        target_box = target_tracking['target_bbox']
                         
-                        if yaw_steps != 0 or pitch_steps != 0:
-                            self.arduino_controller.send_direct_movement(yaw_steps, pitch_steps)
-                        
-                        last_tracking_time = current_time
+                        if (current_time - last_tracking_time >= TRACKING_INTERVAL):
+                            yaw_steps, pitch_steps = tracker_calc.calculate_movement(target_box)
+                            
+                            if yaw_steps != 0 or pitch_steps != 0:
+                                self.arduino_controller.send_direct_movement(yaw_steps, pitch_steps)
+                            else:
+                                # Motorlar durdu, hedef merkezde
+                                # Manuel atış görsel geri bildirimi
+                                if hasattr(self, 'manual_shot_fired') and self.manual_shot_fired:
+                                    if time.time() - self.manual_shot_time < 0.5:  # 0.5 saniye göster
+                                        cv2.putText(ann, "MANUEL ATIS!", 
+                                                (CANVAS_WIDTH//2 - 80, CANVAS_HEIGHT//2 + 100), 
+                                                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3)
+                                        cv2.circle(ann, (CANVAS_WIDTH//2, CANVAS_HEIGHT//2), 40, (0, 255, 0), 3)
+                                    else:
+                                        self.manual_shot_fired = False
+                                # OTONOM ATIŞ KONTROLÜ
+                                if self.shot_mode == "otonom" and (current_time - self.last_auto_shot_time > self.auto_shot_cooldown):
+                                    # Hedef merkezde ve cooldown geçmiş
+                                    self.arduino_controller.arduino.write(b'S\n')
+                                    print("Otonom atış! Hedef merkezde.")
+                                    self.last_auto_shot_time = current_time
+                                    
+                                    # Görsel geri bildirim
+                                    cv2.putText(ann, "OTONOM ATIS!", 
+                                            (CANVAS_WIDTH//2 - 80, CANVAS_HEIGHT//2 + 50), 
+                                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+                            
+                            last_tracking_time = current_time
                         
                         # Takip edilen düşman hedefi vurgula
                         x1, y1, x2, y2 = target_box
@@ -772,7 +892,7 @@ class MainWindow:
                 if target_tracking['current_target_id'] is not None:
                     cv2.putText(ann, f"Hedef: ID {target_tracking['current_target_id']}", 
                             (CANVAS_WIDTH - 150, 80), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)    
                     
                     # Kilit durumu
                     if target_tracking['is_locked']:
@@ -782,6 +902,23 @@ class MainWindow:
                 cv2.putText(ann, "TAKIP: KAPALI", (CANVAS_WIDTH - 150, 55), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
             
+            # Debug bilgileri
+            if self.tracking_enabled and target_tracking['is_locked']:
+                # Sol üst köşeye durum bilgileri
+                cv2.putText(ann, f"Takip: AKTIF", (10, 20), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                
+                if hasattr(self, 'shot_mode'):
+                    cv2.putText(ann, f"Atis: {self.shot_mode.upper()}", (10, 40), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+                    
+                    # Cooldown durumu
+                    if self.shot_mode == "otonom":
+                        cd_remaining = max(0, self.auto_shot_cooldown - (current_time - self.last_auto_shot_time))
+                        color = (0, 255, 0) if cd_remaining == 0 else (0, 165, 255)
+                        cv2.putText(ann, f"CD: {cd_remaining:.1f}s", (10, 60), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
             # Görüntüyü göster
             try:
                 image = cv2.cvtColor(ann, cv2.COLOR_BGR2RGB)

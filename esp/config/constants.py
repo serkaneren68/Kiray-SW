@@ -27,16 +27,16 @@ ARDUINO_COMMANDS = {
 # GUI ayarları
 WINDOW_WIDTH = 1920
 WINDOW_HEIGHT = 1080
-CANVAS_WIDTH = 800
-CANVAS_HEIGHT = 480
+CANVAS_WIDTH = 900
+CANVAS_HEIGHT = 490
 
 # Kamera ayarları
-CAMERA_WIDTH = 800
-CAMERA_HEIGHT = 480
+CAMERA_WIDTH = 900
+CAMERA_HEIGHT = 540
 
 # Step motor konfigürasyonu
-STEPS_PER_DEGREE_YAW = (6400/360)    # 6400 adım / 360 derece
-STEPS_PER_DEGREE_PITCH = (6400/360)  # 6400 adım / 360 derece
+STEPS_PER_DEGREE_YAW = 17.78    # 6400 adım / 360 derece
+STEPS_PER_DEGREE_PITCH = 17.78  # 6400 adım / 360 derece
 
 # Kamera FOV (Field of View) değerleri
 CAMERA_FOV_HORIZONTAL = 60
@@ -45,7 +45,7 @@ CAMERA_FOV_VERTICAL = 45
 # Takip ayarları - DENGELİ VE HASSAS
 TRACKING_DEADZONE = 20      # Merkez için kabul edilebilir hata (piksel)
 TRACKING_INTERVAL = 0.08    # 80ms - dengeli güncelleme
-MOVEMENT_SCALE = 2       # Daha kontrollü hareket
+MOVEMENT_SCALE = 0.8        # Daha kontrollü hareket
 
 # Dinamik hız ayarları
 MAX_STEPS_PER_MOVE = 150    # Maksimum adım

@@ -1,11 +1,10 @@
 import tkinter as tk
 from tkinter import ttk
 
-
 class ManualControls:
     def __init__(self, parent, command_callback):
-        self.frame = tk.LabelFrame(parent, text="Manuel Kontroller", 
-                                  bg="black", fg="yellow", bd=1)
+        self.frame = tk.LabelFrame(parent, text="", 
+                                  bg="black", fg="yellow", bd=0)
         self.command_callback = command_callback
         self.continuous_movement = False
         self.current_direction = None
@@ -14,7 +13,7 @@ class ManualControls:
         self.create_movement_controls()
         
         # Hız kontrolü
-        self.create_speed_control()
+        # self.create_speed_control()
         
         # Pozisyon göstergesi
         self.create_position_display()
@@ -22,76 +21,59 @@ class ManualControls:
         # Hareket modu seçimi
         self.create_movement_mode()
     
-        #create_movement_controls metodunu güncelleyin
     def create_movement_controls(self):
         # Hareket butonları frame'i
         move_frame = tk.Frame(self.frame, bg="black")
-        move_frame.grid(row=0, column=0, columnspan=3, pady=5)
+        move_frame.grid(row=0, column=0, columnspan=3, pady=5, sticky="ew")
         
         # Klavye kısayolları etiketi
         info_label = tk.Label(move_frame, text="Klavye: Yön tuşları | Space: Atış | ESC: Dur | Home: Başlangıç", 
                             bg="black", fg="yellow", font=("Arial", 9))
-        info_label.grid(row=0, column=0, columnspan=3, pady=5)
+        info_label.grid(row=0, column=0, columnspan=4, pady=5, sticky="w")
         
-        # Yukarı butonu (row değerlerini 1 artır)
-        self.btn_up = tk.Button(move_frame, text="↑", font=("Arial", 28), 
+        # Butonlar için sağa hizalı frame
+        buttons_container = tk.Frame(move_frame, bg="black")
+        buttons_container.grid(row=1, column=0, columnspan=4, sticky="e")
+        
+        # Yukarı butonu
+        self.btn_up = tk.Button(buttons_container, text="↑", font=("Arial", 28), 
                             width=3, height=1)
-        self.btn_up.grid(row=1, column=1, pady=2)  # row=0 yerine row=1
+        self.btn_up.grid(row=0, column=1, pady=2)
         
         # Sol butonu
-        self.btn_left = tk.Button(move_frame, text="←", font=("Arial", 28), 
+        self.btn_left = tk.Button(buttons_container, text="←", font=("Arial", 28), 
                                 width=3, height=1)
-        self.btn_left.grid(row=2, column=0, padx=2)  # row=1 yerine row=2
+        self.btn_left.grid(row=1, column=0, padx=2)
         
         # Atış butonu (ortada)
-        self.btn_shot = tk.Button(move_frame, text="ATIŞ", font=("Arial", 16), 
+        self.btn_shot = tk.Button(buttons_container, text="ATIŞ", font=("Arial", 16), 
                                 width=5, height=1, bg="red", fg="white",
                                 command=lambda: self.command_callback("shot"))
-        self.btn_shot.grid(row=2, column=1, pady=2)  # row=1 yerine row=2
+        self.btn_shot.grid(row=1, column=1, pady=2)
         
         # Sağ butonu
-        self.btn_right = tk.Button(move_frame, text="→", font=("Arial", 28), 
+        self.btn_right = tk.Button(buttons_container, text="→", font=("Arial", 28), 
                                 width=3, height=1)
-        self.btn_right.grid(row=2, column=2, padx=2)  # row=1 yerine row=2
+        self.btn_right.grid(row=1, column=2, padx=10)
         
         # Aşağı butonu
-        self.btn_down = tk.Button(move_frame, text="↓", font=("Arial", 28), 
+        self.btn_down = tk.Button(buttons_container, text="↓", font=("Arial", 28), 
                                 width=3, height=1)
-        self.btn_down.grid(row=3, column=1, pady=2)  # row=2 yerine row=3
+        self.btn_down.grid(row=2, column=1, pady=2)
         
         # Dur butonu
-        self.btn_stop = tk.Button(move_frame, text="DUR", font=("Arial", 16), 
+        self.btn_stop = tk.Button(buttons_container, text="DUR", font=("Arial", 16), 
                                 width=5, height=1, bg="orange",
                                 command=self.stop_all)
-        self.btn_stop.grid(row=4, column=1, pady=5)  # row=3 yerine row=4
+        self.btn_stop.grid(row=3, column=1, pady=5)
         
         # Buton event'lerini bağla
         self.bind_button_events()
-    
-    def create_speed_control(self):
-        # Hız kontrolü frame'i
-        speed_frame = tk.LabelFrame(self.frame, text="Hız Kontrolü", 
-                                   bg="black", fg="cyan", bd=1)
-        speed_frame.grid(row=1, column=0, columnspan=3, pady=10, padx=5, sticky="ew")
         
-        # Hız etiketi
-        tk.Label(speed_frame, text="Motor Hızı:", bg="black", fg="white", 
-                font=("Arial", 10)).grid(row=0, column=0, padx=5)
-        
-        # Hız değeri
-        self.speed_var = tk.IntVar(value=50)
-        self.speed_label = tk.Label(speed_frame, text="50%", bg="black", 
-                                   fg="yellow", font=("Arial", 12, "bold"))
-        self.speed_label.grid(row=0, column=2, padx=5)
-        
-        # Hız slider'ı
-        self.speed_slider = ttk.Scale(speed_frame, from_=10, to=100, 
-                                     orient="horizontal", variable=self.speed_var,
-                                     command=self.update_speed)
-        self.speed_slider.grid(row=0, column=1, padx=5, sticky="ew")
-        
-        speed_frame.columnconfigure(1, weight=1)
-    
+        # Sağa hizala
+        buttons_container.columnconfigure(0, weight=1)
+        move_frame.columnconfigure(0, weight=1)
+
     def create_position_display(self):
         # Pozisyon göstergesi frame'i
         pos_frame = tk.LabelFrame(self.frame, text="Mevcut Pozisyon", 
@@ -161,7 +143,6 @@ class ManualControls:
             btn.bind('<ButtonPress-1>', lambda e, d=direction: self.start_movement(d))
             btn.bind('<ButtonRelease-1>', lambda e, d=direction: self.stop_movement(d))
     
-    # start_movement metodunu güncelleyin
     def start_movement(self, direction):
         # Butonu vurgula
         button_map = {
@@ -181,30 +162,7 @@ class ManualControls:
         else:
             # Adım adım hareket
             self.send_step_command(direction)
-
-    # stop_movement metodunu güncelleyin
-    def stop_movement(self, direction):
-        # Buton vurgusunu kaldır
-        button_map = {
-            'up': self.btn_up,
-            'down': self.btn_down,
-            'left': self.btn_left,
-            'right': self.btn_right
-        }
-        
-        if direction in button_map:
-            button_map[direction].config(relief=tk.RAISED, bg="SystemButtonFace")
-        
-        if self.movement_mode.get() == "continuous":
-            self.continuous_movement = False
-            self.command_callback("stop")
     
-    def continuous_move(self):
-        if self.continuous_movement and self.current_direction:
-            self.command_callback(self.current_direction)
-            # Daha sık komut gönder (50ms yerine)
-            self.frame.after(50, self.continuous_move)
-
     def stop_movement(self, direction):
         # Buton vurgusunu kaldır
         button_map = {
@@ -220,6 +178,12 @@ class ManualControls:
         # Her zaman dur komutu gönder
         self.continuous_movement = False
         self.command_callback("stop")
+    
+    def continuous_move(self):
+        if self.continuous_movement and self.current_direction:
+            self.command_callback(self.current_direction)
+            # Daha sık komut gönder (50ms yerine)
+            self.frame.after(50, self.continuous_move)
     
     def send_step_command(self, direction):
         # Adım büyüklüğü ile birlikte komut gönder
@@ -243,7 +207,6 @@ class ManualControls:
         self.yaw_pos_label.config(text="0°")
         self.pitch_pos_label.config(text="0°")
     
-    # ManualControls sınıfında update_position metodunu güncelleyin:
     def update_position(self, yaw, pitch):
         """Pozisyon güncellemesi için dışarıdan çağrılabilir"""
         # Yaw değeri artık referans noktasına göre gösteriliyor
@@ -252,22 +215,12 @@ class ManualControls:
     
     def place(self, x, y, width, height):
         # Frame'i yerleştir
-        self.frame.place(x=1000, y=y, width=width, height=height)
+        self.frame.place(x=940, y=y, width=572, height=300)
         
         # Kompakt yerleşim için iç elemanları yeniden düzenle
         # Hareket kontrolleri frame'i
         move_frame = self.frame.winfo_children()[0]  # İlk child hareket frame'i
-        move_frame.place(x=5, y=5, width=width-10, height=120)
-        
-        # Hız kontrolü frame'i
-        speed_frame = None
-        for child in self.frame.winfo_children():
-            if isinstance(child, tk.LabelFrame) and "Hız Kontrolü" in child.cget("text"):
-                speed_frame = child
-                break
-        
-        if speed_frame:
-            speed_frame.place(x=5, y=130, width=width-10, height=60)
+        move_frame.place(x=5, y=5, width=570, height=300)
         
         # Pozisyon göstergesi frame'i
         pos_frame = None
@@ -300,36 +253,70 @@ class ManualControls:
 
 class TrackingControls:
     def __init__(self, parent, toggle_callback):
-        self.frame = tk.LabelFrame(parent, text="Otomatik Takip", 
-                                  bg="black", fg="cyan", bd=1)
+        self.frame = tk.LabelFrame(parent, text="", 
+                                  bg="#091009", fg="cyan", bd=0)
         self.tracking_btn = tk.Button(
             self.frame, 
-            text="TAKİBİ BAŞLAT", 
-            font=("Arial", 14),
+            text="Start Tracking", 
+            highlightthickness=1,
+            bd=1,
+            relief="raised",
+            bg="#091009",
+            fg="white",
+            font=("Army Rust", 14),
             command=toggle_callback
         )
-        self.tracking_btn.pack(pady=10, padx=20)
+        self.tracking_btn.place(x=20, y=25, width=140, height=80)
     
     def update_button(self, enabled):
         if enabled:
-            self.tracking_btn.config(text="TAKİBİ DURDUR", bg="red")
+            self.tracking_btn.config(text="Stop Tracking", bg="#41210f")
         else:
-            self.tracking_btn.config(text="TAKİBİ BAŞLAT", bg="SystemButtonFace")
+            self.tracking_btn.config(text="Start Tracking", bg="#091009")
     
     def place(self, x, y, width, height):
-        self.frame.place(x=x, y=y, width=width, height=height)
+        self.frame.place(x=x-30, y=y+20, width=width-120, height=height+22)
 
 
 class MainControls:
     def __init__(self, parent, start_callback, stop_callback, reset_callback):
-        self.btn_start = tk.Button(parent, text="BAŞLAT", font=("Arial",14), 
-                                  command=start_callback)
-        self.btn_stop = tk.Button(parent, text="DURDUR", font=("Arial",14), 
-                                 command=stop_callback)
-        self.btn_reset = tk.Button(parent, text="RESET", font=("Arial",14), 
-                                  bg="purple", fg="white", command=reset_callback)
-    
+        self.panel_frame = tk.Frame(parent, bg="#091009", width=270, height=120, bd=2, relief="sunken")
+        self.canvas = tk.Canvas(parent, width=270, height=120, bg="#091009", highlightthickness=0)
+
+        self.btn_start_oval = self.canvas.create_oval(20, 20, 100, 100, fill="#091009", outline="white")
+        self.btn_start_text = self.canvas.create_text(60, 60, text="START", fill="white", font=("Army Rust", 20))
+        self.canvas.tag_bind(self.btn_start_oval, "<Button-1>", lambda e: start_callback())
+        self.canvas.tag_bind(self.btn_start_text, "<Button-1>", lambda e: start_callback())
+
+        self.btn_stop_oval = self.canvas.create_oval(160, 20, 240, 100, fill="#41210f", outline="white")
+        self.btn_stop_text = self.canvas.create_text(200, 60, text="STOP", fill="white", font=("Army Rust", 20))
+        self.canvas.tag_bind(self.btn_stop_oval, "<Button-1>", lambda e: stop_callback())
+        self.canvas.tag_bind(self.btn_stop_text, "<Button-1>", lambda e: stop_callback())
+
+        # RESET köşeleri yuvarlatılmış dikdörtgen
+        self.btn_reset_rect = round_rectangle(self.canvas, 100, 90, 160, 110, radius=15, fill="purple", outline="white")
+        self.btn_reset_text = self.canvas.create_text(130, 100, text="RESET", fill="white", font=("Army Rust", 15))
+        self.canvas.tag_bind(self.btn_reset_rect, "<Button-1>", lambda e: reset_callback())
+        self.canvas.tag_bind(self.btn_reset_text, "<Button-1>", lambda e: reset_callback())
+
     def place(self, x, y):
-        self.btn_start.place(x=x, y=y, width=150, height=40)
-        self.btn_stop.place(x=x+175, y=y, width=150, height=40)
-        self.btn_reset.place(x=x+350, y=y, width=150, height=40)
+        self.panel_frame.place(x=x, y=y-30)
+        self.canvas.place(x=x, y=y-30)
+
+def round_rectangle(canvas, x1, y1, x2, y2, radius=25, **kwargs):
+    points = [
+        x1+radius, y1,
+        x2-radius, y1,
+        x2, y1,
+        x2, y1+radius,
+        x2, y2-radius,
+        x2, y2,
+        x2-radius, y2,
+        x1+radius, y2,
+        x1, y2,
+        x1, y2-radius,
+        x1, y1+radius,
+        x1, y1
+    ]
+    return canvas.create_polygon(points, smooth=True, **kwargs)
+

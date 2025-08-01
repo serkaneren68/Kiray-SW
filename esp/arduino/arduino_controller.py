@@ -5,7 +5,7 @@ from config.constants import ARDUINO_COMMANDS, STEPS_PER_DEGREE_YAW, STEPS_PER_D
 
 
 class ArduinoController:
-    def __init__(self, port='COM3', baudrate=9600):
+    def __init__(self, port='COM7', baudrate=9600):
         self.arduino = None
         self.last_command_time = 0
         self.command_delay = 0.03

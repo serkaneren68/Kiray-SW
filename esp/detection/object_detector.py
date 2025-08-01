@@ -8,7 +8,7 @@ from detection.tracker import ObjectTracker
 
 
 class ObjectDetector:
-    def __init__(self, model_path="sonuncu.engine"):
+    def __init__(self, model_path="SONUNCU.pt"):
         try:
             self.model = YOLO(model_path)
         except Exception as e:
@@ -92,7 +92,7 @@ class ObjectDetector:
                 x1, y1, x2, y2 = map(int, box)
                 
                 # MOD 1 - TÜM BALONLARI GÖSTER
-                if mode == "Mod 1":
+                if mode == "MOD 1":
                     detections.append([float(x1), float(y1), float(x2), float(y2), conf])
                     
                     # BOUNDING BOX'I HER ZAMAN ÇİZ
@@ -101,7 +101,7 @@ class ObjectDetector:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 
                 # MOD 2 - RENK TESPİTİ
-                elif mode == "Mod 2":
+                elif mode == "MOD 2":
                     roi = frame[y1:y2, x1:x2]
                     if roi.size > 0:
                         clr = self.color_detector.detect_color(roi)

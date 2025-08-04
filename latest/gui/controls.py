@@ -259,12 +259,6 @@ class ManualControls:
         move_frame = self.frame.winfo_children()[0]  # İlk child hareket frame'i
         move_frame.place(x=5, y=5, width=width-10, height=120)
         
-        # Hız kontrolü frame'i
-        speed_frame = None
-        for child in self.frame.winfo_children():
-            if isinstance(child, tk.LabelFrame) and "Hız Kontrolü" in child.cget("text"):
-                speed_frame = child
-                break
         
         if speed_frame:
             speed_frame.place(x=5, y=130, width=width-10, height=60)

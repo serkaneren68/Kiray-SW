@@ -5,7 +5,7 @@ from config.constants import ARDUINO_COMMANDS, STEPS_PER_DEGREE_YAW, STEPS_PER_D
 
 
 class ArduinoController:
-    def __init__(self, port='COM7', baudrate=9600):
+    def __init__(self, port='COM4', baudrate=9600):
         self.arduino = None
         self.last_command_time = 0
         self.command_delay = 0.03
@@ -86,16 +86,16 @@ class ArduinoController:
                 
                 # SÜREKLİ MOD İÇİN POZİSYON GÜNCELLEMESİ
                 # Arduino kodunda moveMotors(80, 0) gibi sabit değerler var
-                if command == "right":
+                if command == "left":
                     self.current_yaw += 80 / STEPS_PER_DEGREE_YAW  # 80 adım
                     print(f"Sağa hareket - Yeni yaw: {self.current_yaw:.2f}°")
-                elif command == "left":
+                elif command == "right":
                     self.current_yaw -= 80 / STEPS_PER_DEGREE_YAW
                     print(f"Sola hareket - Yeni yaw: {self.current_yaw:.2f}°")
-                elif command == "up":
+                elif command == "down":
                     self.current_pitch += 80 / STEPS_PER_DEGREE_PITCH
                     print(f"Yukarı hareket - Yeni pitch: {self.current_pitch:.2f}°")
-                elif command == "down":
+                elif command == "up":
                     self.current_pitch -= 80 / STEPS_PER_DEGREE_PITCH
                     print(f"Aşağı hareket - Yeni pitch: {self.current_pitch:.2f}°")
             

@@ -4,7 +4,7 @@ from tkinter import ttk
 class ManualControls:
     def __init__(self, parent, command_callback):
         self.frame = tk.LabelFrame(parent, text="", 
-                                  bg="black", fg="yellow", bd=0)
+                                  bg="#091009", fg="yellow", bd=0)
         self.command_callback = command_callback
         self.continuous_movement = False
         self.current_direction = None
@@ -23,49 +23,49 @@ class ManualControls:
     
     def create_movement_controls(self):
         # Hareket butonları frame'i
-        move_frame = tk.Frame(self.frame, bg="black")
+        move_frame = tk.Frame(self.frame, bg="#091009")
         move_frame.grid(row=0, column=0, columnspan=3, pady=5, sticky="ew")
         
         # Klavye kısayolları etiketi
-        info_label = tk.Label(move_frame, text="Klavye: Yön tuşları | Space: Atış | ESC: Dur | Home: Başlangıç", 
-                            bg="black", fg="yellow", font=("Arial", 9))
+        info_label = tk.Label(move_frame, text="", 
+                            bg="#091009", fg="yellow", font=("Arial", 9))
         info_label.grid(row=0, column=0, columnspan=4, pady=5, sticky="w")
         
         # Butonlar için sağa hizalı frame
-        buttons_container = tk.Frame(move_frame, bg="black")
-        buttons_container.grid(row=1, column=0, columnspan=4, sticky="e")
+        buttons_container = tk.Frame(move_frame, bg="#091009")
+        buttons_container.place(x=0, y=15, width=600, height=280)
         
         # Yukarı butonu
         self.btn_up = tk.Button(buttons_container, text="↑", font=("Arial", 28), 
                             width=3, height=1)
-        self.btn_up.grid(row=0, column=1, pady=2)
+        self.btn_up.place(x=360, y=0, width=80, height=60)
         
         # Sol butonu
         self.btn_left = tk.Button(buttons_container, text="←", font=("Arial", 28), 
                                 width=3, height=1)
-        self.btn_left.grid(row=1, column=0, padx=2)
+        self.btn_left.place(x=270, y=70, width=80, height=60)
         
         # Atış butonu (ortada)
-        self.btn_shot = tk.Button(buttons_container, text="ATIŞ", font=("Arial", 16), 
+        self.btn_shot = tk.Button(buttons_container, text="SHOT", font=("Army Rust", 16), 
                                 width=5, height=1, bg="red", fg="white",
                                 command=lambda: self.command_callback("shot"))
-        self.btn_shot.grid(row=1, column=1, pady=2)
+        self.btn_shot.place(x=360, y=70, width=80, height=60)
         
         # Sağ butonu
         self.btn_right = tk.Button(buttons_container, text="→", font=("Arial", 28), 
                                 width=3, height=1)
-        self.btn_right.grid(row=1, column=2, padx=10)
+        self.btn_right.place(x=450, y=70, width=80, height=60)
         
         # Aşağı butonu
         self.btn_down = tk.Button(buttons_container, text="↓", font=("Arial", 28), 
                                 width=3, height=1)
-        self.btn_down.grid(row=2, column=1, pady=2)
+        self.btn_down.place(x=360, y=140, width=80, height=60)
         
         # Dur butonu
-        self.btn_stop = tk.Button(buttons_container, text="DUR", font=("Arial", 16), 
+        self.btn_stop = tk.Button(buttons_container, text="STOP", font=("Army Rust", 16), 
                                 width=5, height=1, bg="orange",
                                 command=self.stop_all)
-        self.btn_stop.grid(row=3, column=1, pady=5)
+        self.btn_stop.place(x=10, y=140, width=80, height=60)
         
         # Buton event'lerini bağla
         self.bind_button_events()
@@ -76,59 +76,66 @@ class ManualControls:
 
     def create_position_display(self):
         # Pozisyon göstergesi frame'i
-        pos_frame = tk.LabelFrame(self.frame, text="Mevcut Pozisyon", 
-                                 bg="black", fg="lime", bd=1)
+        pos_frame = tk.LabelFrame(self.frame, text="", 
+                                 bg="#091009", fg="lime", bd=1)
         pos_frame.grid(row=2, column=0, columnspan=3, pady=5, padx=5, sticky="ew")
         
         # Yaw (Yatay) pozisyon
-        tk.Label(pos_frame, text="Yatay:", bg="black", fg="white", 
-                font=("Arial", 10)).grid(row=0, column=0, padx=5)
-        self.yaw_pos_label = tk.Label(pos_frame, text="0°", bg="black", 
-                                     fg="cyan", font=("Arial", 11, "bold"))
+        tk.Label(pos_frame, text="HORIZONTAL:", bg="#091009", fg="white", 
+                font=("Army Rust", 10)).grid(row=0, column=0, padx=5)
+        self.yaw_pos_label = tk.Label(pos_frame, text="0°", bg="#091009", 
+                                     fg="cyan", font=("Army Rust", 11, "bold"))
         self.yaw_pos_label.grid(row=0, column=1, padx=5)
         
         # Pitch (Dikey) pozisyon
-        tk.Label(pos_frame, text="Dikey:", bg="black", fg="white", 
-                font=("Arial", 10)).grid(row=1, column=0, padx=5)
-        self.pitch_pos_label = tk.Label(pos_frame, text="0°", bg="black", 
-                                       fg="cyan", font=("Arial", 11, "bold"))
+        tk.Label(pos_frame, text="VERTICAL:", bg="#091009", fg="white", 
+                font=("Army Rust", 10)).grid(row=1, column=0, padx=5)
+        self.pitch_pos_label = tk.Label(pos_frame, text="0°", bg="#091009", 
+                                       fg="cyan", font=("Army Rust", 11, "bold"))
         self.pitch_pos_label.grid(row=1, column=1, padx=5)
         
         # Home butonu
-        self.btn_home = tk.Button(pos_frame, text="HOME", font=("Arial", 10), 
-                                 bg="green", fg="white", width=8,
+        self.btn_home = tk.Button(pos_frame, text="HOME", font=("Army Rust", 15), 
+                                 bg="green", fg="white", width=10,
                                  command=self.go_home)
         self.btn_home.grid(row=0, column=2, rowspan=2, padx=10)
     
     def create_movement_mode(self):
-        # Hareket modu frame'i
-        mode_frame = tk.LabelFrame(self.frame, text="Hareket Modu", 
-                                  bg="black", fg="yellow", bd=1)
-        mode_frame.grid(row=3, column=0, columnspan=3, pady=5, padx=5, sticky="ew")
-        
-        self.movement_mode = tk.StringVar(value="step")
-        
-        # Adım adım hareket
-        tk.Radiobutton(mode_frame, text="Adım", variable=self.movement_mode, 
-                      value="step", bg="black", fg="white", 
-                      selectcolor="black").grid(row=0, column=0, padx=5)
-        
-        # Sürekli hareket
-        tk.Radiobutton(mode_frame, text="Sürekli", variable=self.movement_mode, 
-                      value="continuous", bg="black", fg="white", 
-                      selectcolor="black").grid(row=0, column=1, padx=5)
-        
-        # Adım büyüklüğü
-        tk.Label(mode_frame, text="Adım:", bg="black", fg="white", 
-                font=("Arial", 10)).grid(row=1, column=0, padx=5)
-        
-        self.step_size = tk.StringVar(value="10")
-        step_entry = tk.Entry(mode_frame, textvariable=self.step_size, 
-                             width=5, font=("Arial", 10))
-        step_entry.grid(row=1, column=1, padx=5)
-        
-        tk.Label(mode_frame, text="derece", bg="black", fg="white", 
-                font=("Arial", 10)).grid(row=1, column=2, padx=2)
+            # Hareket modu frame'i
+            mode_frame = tk.LabelFrame(
+                self.frame,
+                text="MOVEMENT MODE",
+                bg="#091009",
+                fg="yellow",
+                bd=1,
+                font=("Army Rust", 15)    # Army Rust fontu, 18 punto
+            )
+
+            mode_frame.grid(row=1, column=1, columnspan=3, pady=5, padx=5, sticky="ew")
+            
+            self.movement_mode = tk.StringVar(value="step")
+            
+            # Adım adım hareket
+            tk.Radiobutton(mode_frame, text="STEP", variable=self.movement_mode, 
+                        value="step", bg="#091009", fg="white", 
+                        selectcolor="#8a7b55").grid(row=0, column=0, padx=5)
+            
+            # Sürekli hareket
+            tk.Radiobutton(mode_frame, text="CONTINUOUS", variable=self.movement_mode, 
+                        value="continuous", bg="#091009", fg="white", 
+                        selectcolor="#8a7b55").grid(row=0, column=1, padx=5)
+            
+            # Adım büyüklüğü
+            tk.Label(mode_frame, text="STEP:", bg="#091009", fg="white", 
+                    font=("Army Rust", 12)).grid(row=1, column=0, padx=5)
+            
+            self.step_size = tk.StringVar(value="10")
+            step_entry = tk.Entry(mode_frame, textvariable=self.step_size, 
+                                width=5, font=("Army Rust", 12))
+            step_entry.grid(row=1, column=1, padx=5)
+            
+            tk.Label(mode_frame, text="DEGREE", bg="#091009", fg="white", 
+                    font=("Army Rust", 12)).grid(row=1, column=2, padx=2)
     
     def bind_button_events(self):
         # Hareket butonlarına event bağla
@@ -215,7 +222,7 @@ class ManualControls:
     
     def place(self, x, y, width, height):
         # Frame'i yerleştir
-        self.frame.place(x=940, y=y, width=572, height=300)
+        self.frame.place(x=940, y=y+65, width=572, height=235)
         
         # Kompakt yerleşim için iç elemanları yeniden düzenle
         # Hareket kontrolleri frame'i
@@ -225,12 +232,12 @@ class ManualControls:
         # Pozisyon göstergesi frame'i
         pos_frame = None
         for child in self.frame.winfo_children():
-            if isinstance(child, tk.LabelFrame) and "Mevcut Pozisyon" in child.cget("text"):
+            if isinstance(child, tk.LabelFrame) and "CURRENT POSITION" in child.cget("text"):
                 pos_frame = child
                 break
         
         if pos_frame:
-            pos_frame.place(x=5, y=195, width=width-10, height=80)
+            pos_frame.place(x=5, y=210, width=width-75, height=80)
         
         # Hareket modu frame'i (varsa)
         mode_frame = None
@@ -242,7 +249,7 @@ class ManualControls:
         if mode_frame:
             # Eğer height yeterli değilse bu frame'i gizle
             if height > 350:
-                mode_frame.place(x=5, y=280, width=width-10, height=70)
+                mode_frame.place(x=5, y=280, width=width-10, height=150)
             else:
                 mode_frame.place_forget()
 

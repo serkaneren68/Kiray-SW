@@ -35,8 +35,8 @@ CAMERA_WIDTH = 900
 CAMERA_HEIGHT = 540
 
 # Step motor konfigürasyonu
-STEPS_PER_DEGREE_YAW = 17.78    # 6400 adım / 360 derece
-STEPS_PER_DEGREE_PITCH = 17.78  # 6400 adım / 360 derece
+STEPS_PER_DEGREE_YAW = (6400/360)    # 6400 adım / 360 derece
+STEPS_PER_DEGREE_PITCH = (6400/360)  # 6400 adım / 360 derece
 
 # Kamera FOV (Field of View) değerleri
 CAMERA_FOV_HORIZONTAL = 60

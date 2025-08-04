@@ -14,6 +14,8 @@ from detection.object_detector import ObjectDetector
 from detection.qr_detector import QRDetector
 from utils.helpers import add_crosshair
 
+from utils.memory_manager import ImageManager, FrameBuffer, MemoryMonitor
+import gc
 
 class MainWindow:
     holding_keys: dict = {}
@@ -21,7 +23,7 @@ class MainWindow:
     def __init__(self, root):
         self.root = root
         
-        bg_image = Image.open("FOTO.png")
+        bg_image = Image.open("kiray7.jpg")
         bg_image = bg_image.resize((WINDOW_WIDTH, WINDOW_HEIGHT))
         self.bg_photo = ImageTk.PhotoImage(bg_image)
 
@@ -30,9 +32,15 @@ class MainWindow:
         self.background_label.lower()
 
         self.root.title("KIRAY HAVA SAVUNMA KONTROL PANELI")
-        self.root.configure(bg="black")
+        self.root.configure(bg="#091009")
         self.root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         
+        # Başlangıç animasyonu
+        self.start_animation()
+
+        # Başlangıçtan sonra ana UI'i başlat
+        self.root.after(3500, self._setup_ui)  # Yalnızca burada çağırın
+
         # Durum değişkenleri
         self.running = False
         self.video_thread = None
@@ -46,8 +54,8 @@ class MainWindow:
         self.camera_index = 0
         
         # Mod durumu
-        self.mode = tk.StringVar(value="MANUEL")
-        self.confirmed_mode = "MANUEL"
+        self.mode = tk.StringVar(value="MANUAL")
+        self.confirmed_mode = "MANUAL"
         
         # Bileşenler
         self.camera_manager = CameraManager(self.camera_index)
@@ -55,19 +63,77 @@ class MainWindow:
         self.object_detector = ObjectDetector()
         self.qr_detector = QRDetector()
         
-        # UI oluştur
-        self._setup_ui()
+        # YENİ: Memory management
+        self.image_manager = ImageManager()
+        self.frame_buffer = FrameBuffer(max_frames=3)
+        self.memory_monitor = MemoryMonitor()
+        
+        # YENİ: Memory cleanup timer
+        self.memory_cleanup_timer = None
+        self.start_memory_monitoring()
 
         self.restricted_area_enabled = False
         self.update_timer = None
 
-        self.auto_fire_enabled = False  # False=Manuel, True=Otonom
+        self.auto_fire_enabled = False  # False=MANUAL, True=Otonom
         self.last_auto_fire_time = 0    # Otonom atış rate limiting için
         self.auto_fire_cooldown = 2.0   # 2 saniye bekleme sür
     
+    def start_memory_monitoring(self):
+        """Memory monitoring başlat"""
+        self.memory_cleanup_check()
+    
+    def memory_cleanup_check(self):
+        """Periyodik memory kontrolü"""
+        try:
+            if self.memory_monitor.should_cleanup():
+                self.perform_memory_cleanup()
+                
+            # Her 5 saniyede kontrol et
+            self.memory_cleanup_timer = self.root.after(5000, self.memory_cleanup_check)
+            
+        except Exception as e:
+            print(f"Memory monitoring error: {e}")
+            # Hata olsa da monitoring'i devam ettir
+            self.memory_cleanup_timer = self.root.after(10000, self.memory_cleanup_check)
+        
+    def perform_memory_cleanup(self):
+        """Memory temizleme işlemi"""
+        try:
+            print("Performing memory cleanup...")
+            
+            # Image manager cleanup
+            self.image_manager.cleanup_all()
+            
+            # Frame buffer cleanup
+            self.frame_buffer.cleanup()
+            
+            # Force garbage collection
+            collected = self.memory_monitor.force_cleanup()
+            
+            # Stats göster
+            stats = self.memory_monitor.get_stats()
+            print(f"Memory stats: Current={stats['current_mb']:.1f}MB, Peak={stats['peak_mb']:.1f}MB")
+            
+        except Exception as e:
+            print(f"Memory cleanup error: {e}")
+
+    def start_animation(self):
+        self.canvas = tk.Canvas(self.root, width=WINDOW_WIDTH, height=WINDOW_HEIGHT, bg='#091009')
+        self.canvas.pack()
+
+        # PNG görseli yükleme
+        image = Image.open('kiray2.png')  # Görsel dosya yolunu buraya ekleyin
+        self.tk_image = ImageTk.PhotoImage(image)
+        
+        # Görseli ekranın ortasına yerleştirme
+        self.canvas.create_image(WINDOW_WIDTH//2.5, WINDOW_HEIGHT//2.5, image=self.tk_image)
+
     def _setup_ui(self):
+        self.canvas.destroy()
+
         # Canvas
-        self.canvas = tk.Canvas(self.root, bg="black", width=CANVAS_WIDTH, 
+        self.canvas = tk.Canvas(self.root, bg="#091009", width=CANVAS_WIDTH, 
                             height=CANVAS_HEIGHT, highlightthickness=2, 
                             highlightbackground="gray")
         self.canvas.place(x=20, y=20)
@@ -98,7 +164,7 @@ class MainWindow:
         
         # YENİ: Atış modu kontrolü - DÜZELTME
         self.fire_mode_frame = tk.LabelFrame(self.root, text="", 
-                                            bg="black", fg="orange", bd=0)
+                                            bg="#091009", fg="orange", bd=0)
         
         self.fire_mode_btn = tk.Button(
             self.fire_mode_frame,
@@ -115,7 +181,7 @@ class MainWindow:
             self.fire_mode_frame,
             text="SHOT WITH SPACE",
             font=("Army Rust", 12),
-            bg="black",
+            bg="#091009",
             fg="yellow"
         )
         self.fire_info_label.pack(pady=10)
@@ -148,9 +214,9 @@ class MainWindow:
         # ATIŞ KONTROLÜ - SPACE TUŞU İÇİN ÖZEL DURUM
         if key == 'space' and not self.auto_fire_enabled:
             # Space tuşu için pressed_keys kontrolü yapma
-            if self.confirmed_mode in ["MANUEL", "MOD 1", "MOD 2"]:
+            if self.confirmed_mode in ["MANUAL", "MOD 1", "MOD 2"]:
                 self.arduino_controller.send_command('shot')
-                print("🎯 MANUEL ATIŞ!")
+                print("🎯 MANUAL ATIŞ!")
             return  # Erken çık, pressed_keys'e ekleme
         
         # Diğer tuşlar için normal kontrol
@@ -159,8 +225,8 @@ class MainWindow:
         
         self.pressed_keys.add(key)
         
-        # Yön tuşları kontrolü (sadece Manuel modda)
-        if self.confirmed_mode == "MANUEL" and hasattr(self, 'manual_controls'):
+        # Yön tuşları kontrolü (sadece MANUAL modda)
+        if self.confirmed_mode == "MANUAL" and hasattr(self, 'manual_controls'):
             if key == 'Up':
                 self.manual_controls.start_movement('up')
             elif key == 'Down':
@@ -185,8 +251,8 @@ class MainWindow:
         # Tuşu basılı listesinden çıkar
         self.pressed_keys.discard(key)
         
-        # Manuel mod kontrolü
-        if self.confirmed_mode != "MANUEL":
+        # MANUAL mod kontrolü
+        if self.confirmed_mode != "MANUAL":
             return
         
         # Yön tuşları bırakıldığında dur
@@ -200,7 +266,7 @@ class MainWindow:
                 self.manual_controls.stop_movement(direction)
 
     def on_mode_change(self, *args):
-        idx = ["MANUEL", "MOD 1", "MOD 2", "MOD 3"].index(self.mode.get())
+        idx = ["MANUAL", "MOD 1", "MOD 2", "MOD 3"].index(self.mode.get())
         self.mode_frame.show_confirm_buttons(idx)
     
     def confirm_mode(self):
@@ -223,7 +289,7 @@ class MainWindow:
         right_panel_x = CANVAS_WIDTH + 40
 
         if self.confirmed_mode == "MOD 2":
-            # Dost/Düşman çerçevesi - manuel kontrollerin yerine
+            # Dost/Düşman çerçevesi - MANUAL kontrollerin yerine
             self.fe_frame.place(right_panel_x, 210, 300, 120)
             
         elif self.confirmed_mode == "MOD 3":
@@ -236,12 +302,12 @@ class MainWindow:
             self.detected_shape = None
             self.confirmed_shape = None
             
-        elif self.confirmed_mode == "MANUEL":
-            # Manuel kontroller
+        elif self.confirmed_mode == "MANUAL":
+            # MANUAL kontroller
             self.manual_controls.place(right_panel_x, 210, 300, 220)
             # Yasaklı alan kontrolü - altta
             self.restricted_area_frame.place(right_panel_x, 550, 300, 280)
-            # Manuel modda açı güncellemesini başlat
+            # MANUAL modda açı güncellemesini başlat
             self.start_angle_update()
     
     def reject_mode(self):
@@ -249,8 +315,8 @@ class MainWindow:
         self.mode_frame.hide_confirm_buttons()
     
     def reset_system(self):
-        self.mode.set("MANUEL")
-        self.confirmed_mode = "MANUEL"
+        self.mode.set("MANUAL")
+        self.confirmed_mode = "MANUAL"
         self.mode_frame.hide_confirm_buttons()
         self.fe_frame.place_forget()
         self.letter_frame.place_forget()
@@ -259,7 +325,7 @@ class MainWindow:
     
     # manual_command metodunu güncelle
     def manual_command(self, command):
-        print(f"[MAIN] Manuel komut alındı: {command}")  # Debug için ekleyin
+        print(f"[MAIN] MANUAL komut alındı: {command}")  # Debug için ekleyin
         self.arduino_controller.send_command(command)
         
         # Pozisyon güncellemesi al
@@ -362,6 +428,17 @@ class MainWindow:
     
     def stop(self):
         self.running = False
+        
+        # YENİ: Memory cleanup timer'ı durdur
+        if self.memory_cleanup_timer:
+            self.root.after_cancel(self.memory_cleanup_timer)
+        
+        # YENİ: Final memory cleanup
+        try:
+            self.perform_memory_cleanup()
+        except:
+            pass
+        
         self.arduino_controller.close()
         self.camera_manager.release()
         if self.video_thread and self.video_thread.is_alive():
@@ -382,6 +459,10 @@ class MainWindow:
             messagebox.showerror("Hata", "Kamera açılamadı!")
             self.running = False
             return
+
+            # YENİ: Memory monitoring variables
+        frame_counter = 0
+        last_cleanup_time = time.time()
 
         # Tracker hesaplayıcı
         from utils.tracker_calculator import TrackerCalculator
@@ -405,6 +486,20 @@ class MainWindow:
             if not ret:
                 time.sleep(0.1)
                 continue
+
+            # YENİ: Frame counter ve memory check
+            frame_counter += 1
+            
+            # Frame'i buffer'a ekle
+            self.frame_buffer.add_frame(frame)
+            
+            # Periyodik memory check (her 50 frame'de)
+            if frame_counter % 50 == 0:
+                current_time = time.time()
+                if current_time - last_cleanup_time > 10:  # 10 saniye geçtiyse
+                    if self.memory_monitor.should_cleanup():
+                        self.perform_memory_cleanup()
+                        last_cleanup_time = current_time
 
             mode = self.confirmed_mode
             ann = frame.copy()
@@ -699,7 +794,7 @@ class MainWindow:
                 
                 # Durum bilgisi
                 enemy_count = len([obj for obj in tracked_objects]) if tracked_objects else 0
-                cv2.putText(ann, f"Dusman Sayisi: {enemy_count}", 
+                cv2.putText(ann, f"NUMBER OF ENEMY: {enemy_count}", 
                         (10, CANVAS_HEIGHT - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
                 if (self.auto_fire_enabled and 
@@ -739,8 +834,8 @@ class MainWindow:
                 else:
                     ann = frame.copy()
             
-            elif mode == "MANUEL":
-                # Manuel modda görüntüyü göster
+            elif mode == "MANUAL":
+                # MANUAL modda görüntüyü göster
                 if self.restricted_area_enabled and hasattr(self, 'arduino_controller'):
                     # Yasaklı alan göstergesi ekle
                     relative_yaw = self.arduino_controller.get_relative_yaw()
@@ -795,17 +890,17 @@ class MainWindow:
                     gauge_radius = 150
                     
                     # Yarım daire arka plan
-                    cv2.ellipse(ann, (center_x, gauge_y), (gauge_radius, gauge_radius), 
-                            0, 180, 360, (100, 100, 100), 2)
+                    # cv2.ellipse(ann, (center_x, gauge_y), (gauge_radius, gauge_radius), 
+                    #         0, 180, 360, (100, 100, 100), 2)
                     
                     # Açı işaretleri
-                    for angle in [-90, -45, 0, 45, 90]:
-                        rad = np.radians(180 - angle)  # OpenCV için açı dönüşümü
-                        x = int(center_x + gauge_radius * np.cos(rad))
-                        y = int(gauge_y - gauge_radius * np.sin(rad))
-                        cv2.circle(ann, (x, y), 3, (200, 200, 200), -1)
-                        cv2.putText(ann, str(angle), (x-15, y-10), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (200, 200, 200), 1)
+                    # for angle in [-90, -45, 0, 45, 90]:
+                    #     rad = np.radians(180 - angle)  # OpenCV için açı dönüşümü
+                    #     x = int(center_x + gauge_radius * np.cos(rad))
+                    #     y = int(gauge_y - gauge_radius * np.sin(rad))
+                    #     cv2.circle(ann, (x, y), 3, (200, 200, 200), -1)
+                    #     cv2.putText(ann, str(angle), (x-15, y-10), 
+                    #             cv2.FONT_HERSHEY_SIMPLEX, 0.4, (200, 200, 200), 1)
                     
                     # Mevcut açı göstergesi
                     if hasattr(self, 'arduino_controller'):
@@ -814,8 +909,8 @@ class MainWindow:
                             rad = np.radians(180 - current_angle)
                             x = int(center_x + gauge_radius * np.cos(rad))
                             y = int(gauge_y - gauge_radius * np.sin(rad))
-                            cv2.line(ann, (center_x, gauge_y), (x, y), (0, 255, 255), 3)
-                            cv2.circle(ann, (x, y), 8, (0, 255, 255), -1)
+                            # cv2.line(ann, (center_x, gauge_y), (x, y), (0, 255, 255), 3)
+                            # cv2.circle(ann, (x, y), 8, (0, 255, 255), -1)
                     
                     # Yasaklı alan işaretleme
                     if self.restricted_area_enabled:
@@ -823,18 +918,18 @@ class MainWindow:
                         max_angle = min(90, self.arduino_controller.restricted_yaw_max)
                         
                         # Yasaklı alan yayı
-                        if min_angle < max_angle:
-                            cv2.ellipse(ann, (center_x, gauge_y), (gauge_radius-10, gauge_radius-10),
-                                    0, 180-max_angle, 180-min_angle, (0, 0, 255), 10)
-                                        # Yasaklı alan sınır çizgileri
-                            for angle in [min_angle, max_angle]:
-                                if -90 <= angle <= 90:
-                                    rad = np.radians(180 - angle)
-                                    x1 = int(center_x + (gauge_radius - 20) * np.cos(rad))
-                                    y1 = int(gauge_y - (gauge_radius - 20) * np.sin(rad))
-                                    x2 = int(center_x + (gauge_radius + 20) * np.cos(rad))
-                                    y2 = int(gauge_y - (gauge_radius + 20) * np.sin(rad))
-                                    cv2.line(ann, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                        # if min_angle < max_angle:
+                        #     # cv2.ellipse(ann, (center_x, gauge_y), (gauge_radius-10, gauge_radius-10),
+                        #             0, 180-max_angle, 180-min_angle, (0, 0, 255), 10)
+                        #                 # Yasaklı alan sınır çizgileri
+                        #     for angle in [min_angle, max_angle]:
+                        #         if -90 <= angle <= 90:
+                        #             rad = np.radians(180 - angle)
+                        #             x1 = int(center_x + (gauge_radius - 20) * np.cos(rad))
+                        #             y1 = int(gauge_y - (gauge_radius - 20) * np.sin(rad))
+                        #             x2 = int(center_x + (gauge_radius + 20) * np.cos(rad))
+                        #             y2 = int(gauge_y - (gauge_radius + 20) * np.sin(rad))
+                        #             # cv2.line(ann, (x1, y1), (x2, y2), (0, 0, 255), 2)
             
             # Crosshair ekle
             ann = add_crosshair(ann)
@@ -845,7 +940,7 @@ class MainWindow:
             
             # Takip durumu
             if self.tracking_enabled:
-                cv2.putText(ann, "TAKIP: ACIK", (CANVAS_WIDTH - 150, 55), 
+                cv2.putText(ann, "TRACKING: ON", (CANVAS_WIDTH - 150, 55), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 
                 # Hedef durumu
@@ -859,21 +954,23 @@ class MainWindow:
                         cv2.putText(ann, "KILITLI", (CANVAS_WIDTH - 150, 105), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
             else:
-                cv2.putText(ann, "TAKIP: KAPALI", (CANVAS_WIDTH - 150, 55), 
+                cv2.putText(ann, "TRACKING: OFF", (CANVAS_WIDTH - 150, 55), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
             
-            # Görüntüyü göster
+            # YENİ: Görüntüyü memory manager ile göster
             try:
-                image = cv2.cvtColor(ann, cv2.COLOR_BGR2RGB)
-                image = Image.fromarray(image)
-                image = ImageTk.PhotoImage(image)
+                # Image manager kullan
+                display_image = self.image_manager.create_display_image(ann)
                 
-                if image_id is None:
-                    image_id = self.canvas.create_image(0, 0, anchor=tk.NW, image=image)
-                else:
-                    self.canvas.itemconfig(image_id, image=image)
-                
-                self.canvas.image = image
+                if display_image:
+                    if image_id is None:
+                        image_id = self.canvas.create_image(0, 0, anchor=tk.NW, image=display_image)
+                    else:
+                        self.canvas.itemconfig(image_id, image=display_image)
+                    
+                    # Canvas referansını güncelle
+                    self.canvas.image = display_image
+                    
             except Exception as e:
                 print(f"Görüntü hatası: {e}")
 
@@ -881,7 +978,7 @@ class MainWindow:
 
         # Atış modu bilgisi
         if mode in ["MOD 1", "MOD 2"]:
-            fire_mode_text = "OTONOM" if self.auto_fire_enabled else "MANUEL"
+            fire_mode_text = "OTONOM" if self.auto_fire_enabled else "MANUAL"
             fire_color = (0, 0, 255) if self.auto_fire_enabled else (0, 255, 0)
             
             cv2.putText(ann, f"Atis: {fire_mode_text}", 
@@ -922,12 +1019,12 @@ class MainWindow:
 
     def start_angle_update(self):
         """Açı göstergesini periyodik olarak güncelle"""
-        if self.confirmed_mode == "MANUEL":
+        if self.confirmed_mode == "MANUAL":
             self.update_angle_display()
     
     def update_angle_display(self):
         """Açı ve atış durumu göstergesini güncelle"""
-        if self.confirmed_mode == "MANUEL" and hasattr(self, 'restricted_area_frame'):
+        if self.confirmed_mode == "MANUAL" and hasattr(self, 'restricted_area_frame'):
             # Mevcut açıyı al
             relative_yaw = self.arduino_controller.get_relative_yaw()
             self.restricted_area_frame.update_angle(relative_yaw)
@@ -938,7 +1035,7 @@ class MainWindow:
             max_angle = self.arduino_controller.restricted_yaw_max
             self.restricted_area_frame.update_shot_status(shot_allowed, min_angle, max_angle)
             
-            # Manuel kontrol pozisyon güncellemesi
+            # MANUAL kontrol pozisyon güncellemesi
             if hasattr(self, 'manual_controls'):
                 yaw, pitch = self.arduino_controller.get_position()
                 self.manual_controls.update_position(relative_yaw, pitch)
@@ -957,7 +1054,7 @@ class MainWindow:
             self.fire_mode_btn.config(text="MANUAL SHOT", bg="blue")
             self.fire_info_label.config(text="SHOT WITH SPACE")
         
-        print(f"Atış modu: {'OTONOM' if self.auto_fire_enabled else 'MANUEL'}")
+        print(f"Atış modu: {'OTONOM' if self.auto_fire_enabled else 'MANUAL'}")
 
     def is_target_centered(self, bbox):
         """Hedefin merkezde olup olmadığını kontrol et"""

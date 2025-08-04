@@ -10,7 +10,7 @@ class ModeFrame:
         self.reject_callback = reject_callback
         
         # Radio buttons
-        for i, m in enumerate(["MANUEL", "MOD 1", "MOD 2", "MOD 3"]):
+        for i, m in enumerate(["MANUAL", "MOD 1", "MOD 2", "MOD 3"]):
             tk.Radiobutton(
                 self.frame,
                 text=m,
@@ -48,14 +48,14 @@ class ModeFrame:
 class FriendEnemyFrame:
     def __init__(self, parent):
         self.frame = tk.LabelFrame(parent, text="", 
-                                  bg="black", fg="limegreen", bd=0)
+                                  bg="#091009", fg="limegreen", bd=0)
         self.frame.columnconfigure(0, weight=1)
         self.frame.columnconfigure(1, weight=1)
 
         lbl_friend = tk.Label(self.frame, text="ALLY COLOR: BLUE", 
-                             font=("Army Rust",25), bg="black", fg="blue")
+                             font=("Army Rust",25), bg="#091009", fg="blue")
         lbl_enemy = tk.Label(self.frame, text="ENEMY COLOR: RED", 
-                            font=("Army Rust",25), bg="black", fg="red")
+                            font=("Army Rust",25), bg="#091009", fg="red")
         lbl_friend.grid(row=0, column=0, padx=30, pady=10, sticky="w")
         lbl_enemy.grid(row=0, column=1, padx=0, pady=10, sticky="w")
 
@@ -70,11 +70,11 @@ class FriendEnemyFrame:
 class LetterFrame:
     def __init__(self, parent, accept_callback):
         self.frame = tk.LabelFrame(parent, text="", 
-                                  bg="black", fg="dodgerblue", bd=0)
+                                  bg="#091009", fg="dodgerblue", bd=0)
         self.letter_label = tk.Label(self.frame, text="LETTER: —", 
-                                   font=("Army Rust",30), fg="cyan", bg="black")
+                                   font=("Army Rust",30), fg="cyan", bg="#091009")
         self.shape_label = tk.Label(self.frame, text="SHAPE: —", 
-                                   font=("Army Rust",30), fg="orange", bg="black")
+                                   font=("Army Rust",30), fg="orange", bg="#091009")
         self.btn_accept = tk.Button(self.frame, text="APPLY", 
                                    font=("Army Rust",20), command=accept_callback)
         self.letter_label.pack(pady=5)
@@ -97,7 +97,7 @@ class LetterFrame:
 class RestrictedAreaFrame:
     def __init__(self, parent, set_ref_callback, confirm_callback):
         self.frame = tk.LabelFrame(parent, text="", 
-                                  bg="black", fg="red", bd=0)
+                                  bg="#091009", fg="red", bd=0)
         
         # Referans noktası butonu
         self.btn_set_ref = tk.Button(self.frame, text="SET REFERENCE \nPOINT", 
@@ -107,34 +107,34 @@ class RestrictedAreaFrame:
         
         # Mevcut açı göstergesi
         self.angle_label = tk.Label(self.frame, text="CURRENT ANGLE: 0°", 
-                                   font=("Army Rust", 15), bg="black", fg="yellow")
+                                   font=("Army Rust", 15), bg="#091009", fg="yellow")
         self.angle_label.place(x=10,y=60)
         
         # Yasaklı alan açı girişi
-        input_frame = tk.Frame(self.frame, bg="black")
+        input_frame = tk.Frame(self.frame, bg="#091009")
         input_frame.place(x=0, y=110, width=300, height=200)
 
         tk.Label(input_frame, text="RESTRICTED AREA", font=("Army Rust", 15), 
-                bg="black", fg="white").place(x=15,y=0)
+                bg="#091009", fg="white").place(x=15,y=0)
         
         # Min ve Max açı aynı satırda
         tk.Label(input_frame, text="Min:", font=("Army Rust", 12), 
-                bg="black", fg="white").place(x=10,y=30)
+                bg="#091009", fg="white").place(x=10,y=30)
         self.min_angle_var = tk.StringVar(value="-15")
         self.min_entry = tk.Entry(input_frame, textvariable=self.min_angle_var, 
                                  width=3, font=("Army Rust", 12))
         self.min_entry.place(x=40,y=30)
         tk.Label(input_frame, text="°", font=("Army Rust", 12), 
-                bg="black", fg="white").place(x=60,y=30)
+                bg="#091009", fg="white").place(x=60,y=30)
         
         tk.Label(input_frame, text="Max:", font=("Army Rust", 12), 
-                bg="black", fg="white").place(x=90,y=30)
+                bg="#091009", fg="white").place(x=90,y=30)
         self.max_angle_var = tk.StringVar(value="15")
         self.max_entry = tk.Entry(input_frame, textvariable=self.max_angle_var, 
                                  width=3, font=("Army Rust", 12))
         self.max_entry.place(x=120,y=30)
         tk.Label(input_frame, text="°", font=("Army Rust", 12), 
-                bg="black", fg="white").place(x=140,y=30)
+                bg="#091009", fg="white").place(x=140,y=30)
         
         # Onay butonu
         self.btn_confirm = tk.Button(self.frame, text="SET RESTRICTED \nAREA", 
@@ -144,12 +144,12 @@ class RestrictedAreaFrame:
         
         # Durum göstergesi
         self.status_label = tk.Label(self.frame, text="restricted Area: OFF", 
-                                    font=("Army Rust", 9), bg="black", fg="orange")
+                                    font=("Army Rust", 9), bg="#091009", fg="orange")
         self.status_label.place(x=180,y=200)
         
         # Atış durumu göstergesi
         self.shot_status = tk.Label(self.frame, text="Fire not permitted!", 
-                                   font=("Army Rust", 9), bg="black", fg="white")
+                                   font=("Army Rust", 9), bg="#091009", fg="white")
         self.shot_status.place(x=300,y=200)
     
     def update_angle(self, angle):
@@ -194,15 +194,15 @@ import tkinter as tk
 class CameraSelectionFrame:
     def __init__(self, parent, apply_callback):
         self.frame = tk.LabelFrame(parent, text="", 
-                                  bg="black", fg="yellow", bd=0)
+                                  bg="#091009", fg="yellow", bd=0)
         self.apply_callback = apply_callback
         # Dönüşüm kontrolleri - sol tarafta
-        transform_frame = tk.Frame(self.frame, bg="black")
+        transform_frame = tk.Frame(self.frame, bg="#091009")
         # 90° checkbox
         self.rotate_var = tk.BooleanVar(value=False)
         self.rotate_check = tk.Checkbutton(
             transform_frame, text="90°", variable=self.rotate_var,
-            bg="black", fg="white", selectcolor="black",
+            bg="#091009", fg="white", selectcolor="#8a7b55",
             command=self.apply_callback, font=("Army Rust", 8)
         )
         self.rotate_check.grid(row=0, column=0, padx=2, pady=2)
@@ -210,7 +210,7 @@ class CameraSelectionFrame:
         self.flip_h_var = tk.BooleanVar(value=False)
         self.flip_h_check = tk.Checkbutton(
             transform_frame, text="HORIZONTAL", variable=self.flip_h_var,
-            bg="black", fg="white", selectcolor="black",
+            bg="#091009", fg="white", selectcolor="#8a7b55",
             command=self.apply_callback, font=("Army Rust", 8)
         )
         self.flip_h_check.grid(row=1, column=0, padx=2, pady=2)
@@ -218,7 +218,7 @@ class CameraSelectionFrame:
         self.flip_v_var = tk.BooleanVar(value=False)
         self.flip_v_check = tk.Checkbutton(
             transform_frame, text="VERTICAL", variable=self.flip_v_var,
-            bg="black", fg="white", selectcolor="black",
+            bg="#091009", fg="white", selectcolor="#8a7b55",
             command=self.apply_callback, font=("Army Rust", 8)
         )
         self.flip_v_check.grid(row=2, column=0, padx=2, pady=2)
@@ -238,8 +238,8 @@ class CameraSelectionFrame:
         self.btn_apply.grid(row=0, column=1, sticky='ne', padx=5, pady=5)
 
         # Kamera indeksi - sağ alt
-        index_frame = tk.Frame(self.frame, bg="black")
-        lbl = tk.Label(index_frame, text="CAMERA:", bg="black", fg="white", font=("Army Rust", 9))
+        index_frame = tk.Frame(self.frame, bg="#091009")
+        lbl = tk.Label(index_frame, text="CAMERA:", bg="#091009", fg="white", font=("Army Rust", 9))
         lbl.pack(side=tk.LEFT, padx=3)
         self.camera_var = tk.StringVar(value="0")
         self.camera_entry = tk.Entry(index_frame, textvariable=self.camera_var, width=3, font=("Army Rust", 9))

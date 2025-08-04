@@ -15,6 +15,9 @@ from detection.qr_detector import QRDetector
 from utils.helpers import add_crosshair
 
 
+import tkinter as tk
+import time
+
 class MainWindow:
     holding_keys: dict = {}
     hold_interval = 100
@@ -23,8 +26,14 @@ class MainWindow:
         self.root.title("KIRAY HAVA SAVUNMA KONTROL PANELI")
         self.root.configure(bg="black")
         self.root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
+
+        # Başlangıç animasyonu
+        self.start_animation()
+
+        # Başlangıçtan sonra ana UI'i başlat
+        self.root.after(4500, self._setup_ui)  # Yalnızca burada çağırın
         
-        # Durum değişkenleri
+        # Diğer durum değişkenleri
         self.running = False
         self.video_thread = None
         self.detected_shape = None
@@ -35,28 +44,32 @@ class MainWindow:
         self.restricted_angle = None
         self.tracking_enabled = False
         self.camera_index = 0
-        
-        # Mod durumu
         self.mode = tk.StringVar(value="Manuel")
         self.confirmed_mode = "Mod 1"
-        
-        # Bileşenler
         self.camera_manager = CameraManager(self.camera_index)
         self.arduino_controller = ArduinoController()
         self.object_detector = ObjectDetector()
         self.qr_detector = QRDetector()
-        
-        # UI oluştur
-        self._setup_ui()
-
         self.restricted_area_enabled = False
         self.update_timer = None
+        self.auto_fire_enabled = False
+        self.last_auto_fire_time = 0
+        self.auto_fire_cooldown = 3.5
 
-        self.auto_fire_enabled = False  # False=Manuel, True=Otonom
-        self.last_auto_fire_time = 0    # Otonom atış rate limiting için
-        self.auto_fire_cooldown = 2.0   # 2 saniye bekleme sür
-    
+    def start_animation(self):
+        self.canvas = tk.Canvas(self.root, width=WINDOW_WIDTH, height=WINDOW_HEIGHT, bg='black')
+        self.canvas.pack()
+
+        # PNG görseli yükleme
+        image = Image.open('esdeath.jpg')  # Görsel dosya yolunu buraya ekleyin
+        self.tk_image = ImageTk.PhotoImage(image)
+        
+        # Görseli ekranın ortasına yerleştirme
+        self.canvas.create_image(WINDOW_WIDTH//3, WINDOW_HEIGHT//3, image=self.tk_image)
+
     def _setup_ui(self):
+        self.canvas.destroy()
+
         # Canvas
         self.canvas = tk.Canvas(self.root, bg="black", width=CANVAS_WIDTH, 
                             height=CANVAS_HEIGHT, highlightthickness=2, 
@@ -66,7 +79,7 @@ class MainWindow:
         # Frame'ler
         self.mode_frame = ModeFrame(self.root, self.mode, self.on_mode_change,
                                 self.confirm_mode, self.reject_mode)
-        self.mode_frame.place(20, CANVAS_HEIGHT + 30)  # Canvas'ın altında
+        self.mode_frame.place(20, CANVAS_HEIGHT + 30)
         
         self.fe_frame = FriendEnemyFrame(self.root)
         self.letter_frame = LetterFrame(self.root, self.accept_engagement)
@@ -87,7 +100,7 @@ class MainWindow:
         self.tracking_controls = TrackingControls(self.root, self.toggle_tracking)
         self.tracking_controls.place(right_panel_x, 440, 300, 100)
         
-        # YENİ: Atış modu kontrolü - DÜZELTME
+        # Atış modu çerçevesi
         self.fire_mode_frame = tk.LabelFrame(self.root, text="Atış Modu", 
                                             bg="black", fg="orange", bd=1)
         
@@ -111,12 +124,9 @@ class MainWindow:
         )
         self.fire_info_label.pack(pady=3)
         
-        # DOĞRU KULLANIM - x, y, width, height keyword ile
+        # Atış modu çerçevesini yerleştirme
         self.fire_mode_frame.place(x=right_panel_x, y=550, width=300, height=90)
             
-        # Hız kontrolü - takip kontrolünün altında
-        # (ManualControls içinde zaten var, sadece yerini ayarlıyoruz)
-        
         # Ana kontroller - alt kısım
         self.main_controls = MainControls(self.root, self.start, self.stop, self.reset_system)
         self.main_controls.place(20, CANVAS_HEIGHT + 160)
@@ -127,11 +137,8 @@ class MainWindow:
         
         # Aktif tuşları takip et
         self.pressed_keys = set()
-        
-        # Update timer
         self.update_timer = None
-        self.restricted_area_enabled = False
-    
+
     def on_key_press(self, event):
         """Klavye tuşuna basıldığında"""
         key = event.keysym
